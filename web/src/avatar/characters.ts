@@ -16,6 +16,8 @@ export interface Look {
   collar?: boolean;
   bowTie?: number;
   whistle?: boolean;
+  /** Makes a metal robot: the colours in `skin` and `body` become its metal, and `glow` its lights. */
+  robot?: { glow: number };
 }
 
 export type Character =
@@ -73,14 +75,21 @@ export const CHARACTERS: Character[] = [
       whistle: true,
     },
   },
-  { id: "anime", name: "Anime teacher", kind: "vrm", url: "/models/teacher.vrm" },
   {
-    id: "seed",
-    name: "Seed-san (anime)",
-    kind: "vrm",
-    url: "/models/seed-san.vrm",
-    credit: "Seed-san by VirtualCast, Inc. (VRM sample avatar)",
+    id: "robot",
+    name: "Robo-Tutor",
+    kind: "cartoon",
+    look: {
+      skin: 0xb0bec5,
+      nose: 0,
+      noseSize: 0,
+      hair: 0x37474f,
+      hairStyle: "none",
+      body: 0x5c7cfa,
+      robot: { glow: 0x00e5ff },
+    },
   },
+  { id: "anime", name: "Anime teacher", kind: "vrm", url: "/models/teacher.vrm" },
 ];
 
 export const DEFAULT_CHARACTER = CHARACTERS[0].id;

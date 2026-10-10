@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import type { Look } from "./characters";
 import { MouthDriver } from "./lipSync";
 
@@ -114,6 +115,12 @@ export default function CartoonAvatar({ look, analyser, speaking, attentive }: P
       }
       part(tie, ball, look.bowTie).scale.setScalar(0.07);
     }
+    if (look.robot) {
+      const panel = part(body, flat(new RoundedBoxGeometry(0.34, 0.22, 0.08, 4, 0.04)), 0x263238, { outline: 1.12 });
+      panel.position.set(0, -1.0, 0.5);
+      part(body, ball, look.robot.glow, { outline: 0 }).scale.setScalar(0.05);
+      body.children[body.children.length - 1].position.set(0, -1.0, 0.56);
+    }
     if (look.whistle) {
       const whistle = new THREE.Group();
       whistle.position.set(0.12, -0.98, 0.5);
@@ -131,16 +138,31 @@ export default function CartoonAvatar({ look, analyser, speaking, attentive }: P
     head.position.set(0, 0.72, 0);
     neck.add(head);
 
-    part(head, ball, SKIN).scale.set(0.58, 0.54, 0.52);
-    for (const side of [-1, 1]) {
-      part(head, ball, SKIN).scale.setScalar(0.1);
-      head.children[head.children.length - 1].position.set(side * 0.56, -0.02, 0);
+    if (look.robot) {
+      // A rounded metal head with bolt "ears" and an antenna that glows.
+      part(head, flat(new RoundedBoxGeometry(1.1, 0.95, 0.9, 6, 0.18)), SKIN);
+      for (const side of [-1, 1]) {
+        const bolt = part(head, flat(new THREE.CylinderGeometry(0.09, 0.09, 0.14, 16)), 0x78909c);
+        bolt.rotation.z = Math.PI / 2;
+        bolt.position.set(side * 0.6, -0.02, 0);
+      }
+      part(head, flat(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8)), 0x78909c, { outline: 0 }).position.y = 0.6;
+      part(head, ball, look.robot.glow, { outline: 1.15 }).scale.setScalar(0.075);
+      head.children[head.children.length - 1].position.y = 0.78;
+    } else {
+      part(head, ball, SKIN).scale.set(0.58, 0.54, 0.52);
+      for (const side of [-1, 1]) {
+        part(head, ball, SKIN).scale.setScalar(0.1);
+        head.children[head.children.length - 1].position.set(side * 0.56, -0.02, 0);
+      }
     }
 
     // Big round nose.
-    const nose = part(head, ball, NOSE);
-    nose.scale.set(0.17 * look.noseSize, 0.15 * look.noseSize, 0.15 * look.noseSize);
-    nose.position.set(0, -0.06, 0.48 + 0.02 * look.noseSize);
+    if (look.noseSize > 0) {
+      const nose = part(head, ball, NOSE);
+      nose.scale.set(0.17 * look.noseSize, 0.15 * look.noseSize, 0.15 * look.noseSize);
+      nose.position.set(0, -0.06, 0.48 + 0.02 * look.noseSize);
+    }
 
     // Eyes with pupils that can look around, and eyebrows.
     const eyes: THREE.Group[] = [];
@@ -152,7 +174,7 @@ export default function CartoonAvatar({ look, analyser, speaking, attentive }: P
       eye.position.set(side * 0.2, 0.14, 0.46);
       head.add(eye);
       part(eye, ball, 0xffffff).scale.set(0.1, 0.125, 0.06);
-      const pupil = part(eye, ball, 0x1b1b1b, { outline: 0 });
+      const pupil = part(eye, ball, look.robot ? look.robot.glow : 0x1b1b1b, { outline: 0 });
       pupil.scale.setScalar(0.05);
       pupil.position.z = 0.04;
       eyes.push(eye);
@@ -164,7 +186,7 @@ export default function CartoonAvatar({ look, analyser, speaking, attentive }: P
       }
 
       const brow = part(head, browGeometry, HAIR, { outline: 0 });
-      brow.rotation.z = Math.PI / 2 + side * 0.18;
+      brow.rotation.z = Math.PI / 2 - side * 0.18;
       brow.position.set(side * 0.2, 0.34, 0.47);
       brows.push(brow);
     }
@@ -192,10 +214,10 @@ export default function CartoonAvatar({ look, analyser, speaking, attentive }: P
     const mouth = new THREE.Group();
     mouth.position.set(0, -0.33, 0.4);
     head.add(mouth);
-    const lips = part(mouth, ball, 0xc4515a, { outline: 0 });
-    const opening = part(mouth, ball, 0x3d0a0f, { outline: 0 });
-    const tongue = part(mouth, ball, 0xe8808a, { outline: 0 });
-    const smile = part(mouth, flat(new THREE.TorusGeometry(0.13, 0.016, 8, 28, Math.PI)), 0x7a2630, { outline: 0 });
+    const lips = part(mouth, ball, look.robot ? 0x78909c : 0xc4515a, { outline: 0 });
+    const opening = part(mouth, ball, look.robot ? 0x10202a : 0x3d0a0f, { outline: 0 });
+    const tongue = part(mouth, ball, look.robot ? look.robot.glow : 0xe8808a, { outline: 0 });
+    const smile = part(mouth, flat(new THREE.TorusGeometry(0.13, 0.016, 8, 28, Math.PI)), look.robot ? look.robot.glow : 0x7a2630, { outline: 0 });
     smile.rotation.z = Math.PI;
     smile.position.set(0, 0.05, 0.06);
 
@@ -261,7 +283,7 @@ export default function CartoonAvatar({ look, analyser, speaking, attentive }: P
     }
 
     // Sideburns peeking out under the cap.
-    for (const side of look.hairStyle === "none" && !look.beard ? [-1, 1] : []) {
+    for (const side of look.hairStyle === "none" && !look.beard && !look.robot ? [-1, 1] : []) {
       const burn = part(head, ball, HAIR, { outline: 0 });
       burn.scale.set(0.06, 0.16, 0.1);
       burn.position.set(side * 0.5, 0.2, 0.12);
@@ -351,7 +373,7 @@ export default function CartoonAvatar({ look, analyser, speaking, attentive }: P
       // Eyebrows lift with the voice.
       for (const [i, brow] of brows.entries()) {
         brow.position.y = 0.34 + smoothedLevel * 0.04 + (state.attentive ? 0.025 : 0);
-        brow.rotation.z = Math.PI / 2 + (i === 0 ? -0.18 : 0.18) + smoothedLevel * (i === 0 ? 0.1 : -0.1);
+        brow.rotation.z = Math.PI / 2 + (i === 0 ? 0.18 : -0.18) + smoothedLevel * (i === 0 ? -0.1 : 0.1);
       }
 
       // Body: breathing, gentle sway, nodding with the voice, tilting the head when listening.
