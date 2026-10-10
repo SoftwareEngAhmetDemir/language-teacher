@@ -57,11 +57,18 @@ registerProcessor("capture", Capture);
 class Player {
   private nextStart = 0;
   private sources = new Set<AudioBufferSourceNode>();
+  /** Everything played goes through here, so the avatar can read the audio to move its mouth. */
+  readonly analyser: AnalyserNode;
 
   constructor(
     private ctx: AudioContext,
     private onSpeaking: (speaking: boolean) => void,
-  ) {}
+  ) {
+    this.analyser = ctx.createAnalyser();
+    this.analyser.fftSize = 1024;
+    this.analyser.smoothingTimeConstant = 0.4;
+    this.analyser.connect(ctx.destination);
+  }
 
   play(pcm: ArrayBuffer) {
     const samples = new Int16Array(pcm, 0, Math.floor(pcm.byteLength / 2));
@@ -71,7 +78,7 @@ class Player {
 
     const source = this.ctx.createBufferSource();
     source.buffer = buffer;
-    source.connect(this.ctx.destination);
+    source.connect(this.analyser);
     // A small lead on the first chunk avoids a stutter before more audio arrives.
     const startAt = Math.max(this.nextStart, this.ctx.currentTime + 0.05);
     source.start(startAt);
@@ -182,6 +189,11 @@ export class LiveConversation {
       cleanup();
       throw err;
     }
+  }
+
+  /** The teacher's audio, for driving the avatar's lip sync. */
+  get analyser(): AnalyserNode {
+    return this.player.analyser;
   }
 
   /** Mutes the microphone without ending the call. */

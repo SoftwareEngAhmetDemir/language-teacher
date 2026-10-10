@@ -43,6 +43,7 @@ export function useVoiceConversation() {
   const [muted, setMuted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const call = useRef<LiveConversation | null>(null);
   // Ignores events from a call that was already replaced or ended.
   const callId = useRef(0);
@@ -51,6 +52,7 @@ export function useVoiceConversation() {
     callId.current++;
     call.current?.stop();
     call.current = null;
+    setAnalyser(null);
     setStatus("idle");
     setTeacherSpeaking(false);
     setMuted(false);
@@ -74,6 +76,7 @@ export function useVoiceConversation() {
           onClose: () => {
             if (id !== callId.current) return;
             call.current = null;
+            setAnalyser(null);
             setStatus("idle");
             setTeacherSpeaking(false);
             setMuted(false);
@@ -82,6 +85,7 @@ export function useVoiceConversation() {
         });
         if (id !== callId.current) return conversation.stop();
         call.current = conversation;
+        setAnalyser(conversation.analyser);
         setStatus("live");
       } catch (e) {
         if (id !== callId.current) return;
@@ -112,5 +116,5 @@ export function useVoiceConversation() {
 
   useEffect(() => stop, [stop]);
 
-  return { status, teacherSpeaking, muted, messages, error, start, stop, toggleMute, sendText, clear, clearError: () => setError(null) };
+  return { status, teacherSpeaking, muted, messages, error, analyser, start, stop, toggleMute, sendText, clear, clearError: () => setError(null) };
 }

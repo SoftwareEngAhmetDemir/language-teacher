@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { fetchConfig, getCode, streamReply, unlock, type Config, type Lesson } from "./lib/api";
 import type { Engine, Message } from "./lib/types";
 import { splitSentences } from "./lib/speech";
@@ -15,6 +15,9 @@ const LEVEL_NAMES: Record<string, string> = {
   C2: "C2 · Mastery",
   "C2+": "C2+ · Beyond mastery",
 };
+
+// three.js and the 3D model are only downloaded when the teacher is shown.
+const Avatar = lazy(() => import("./avatar/Avatar"));
 
 const START_LESSON = "Hello! Please start our lesson.";
 
@@ -43,6 +46,7 @@ export default function App() {
   const [speakReplies, setSpeakReplies] = useState(true);
   // Microphone switch: once on it stays on, re-listening automatically after every turn.
   const [micOn, setMicOn] = useState(false);
+  const [showTeacher, setShowTeacher] = useState(() => loadPref("showTeacher", "on") === "on");
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [unlocked, setUnlocked] = useState(() => getCode() !== "");
   const [codeInput, setCodeInput] = useState("");
@@ -241,6 +245,16 @@ export default function App() {
         <h1>Language Teacher</h1>
       </header>
 
+      {showTeacher && (
+        <Suspense fallback={<div className="avatar" />}>
+          <Avatar
+            analyser={voiceMode ? voice.analyser : null}
+            speaking={voiceMode ? voice.teacherSpeaking : speaker.speaking}
+            attentive={voiceMode && voice.status === "live" && !voice.teacherSpeaking}
+          />
+        </Suspense>
+      )}
+
       <section className="settings">
         <label>
           Language
@@ -269,6 +283,17 @@ export default function App() {
             <option value="voice">Natural voice conversation</option>
             <option value="text">Text chat with browser voice</option>
           </select>
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={showTeacher}
+            onChange={(e) => {
+              setShowTeacher(e.target.checked);
+              savePref("showTeacher", e.target.checked ? "on" : "off");
+            }}
+          />
+          Show teacher
         </label>
         {!voiceMode && (
           <>
@@ -357,55 +382,57 @@ export default function App() {
         <div ref={endRef} />
       </div>
 
-      {voiceMode && (
-        <div className="call">
-          <button
-            className={`call-btn${voice.status === "idle" ? "" : " end"}${voice.teacherSpeaking ? " talking" : ""}`}
-            disabled={voice.status === "connecting"}
-            onClick={() => (voice.status === "idle" ? void voice.start(lesson) : voice.stop())}
-          >
-            {voice.status === "idle" ? "🎤 Start conversation" : voice.status === "connecting" ? "Connecting…" : "End conversation"}
-          </button>
-          {voice.status === "live" && (
-            <button onClick={voice.toggleMute}>{voice.muted ? "Unmute" : "Mute"}</button>
-          )}
-          <span className="call-status">
-            {voice.status === "live" &&
-              (voice.muted ? "Muted" : voice.teacherSpeaking ? "Teacher is speaking · talk any time to interrupt" : "Listening…")}
-          </span>
-        </div>
-      )}
+      <div className="dock">
+        {voiceMode && (
+          <div className="call">
+            <button
+              className={`call-btn${voice.status === "idle" ? "" : " end"}${voice.teacherSpeaking ? " talking" : ""}`}
+              disabled={voice.status === "connecting"}
+              onClick={() => (voice.status === "idle" ? void voice.start(lesson) : voice.stop())}
+            >
+              {voice.status === "idle" ? "🎤 Start conversation" : voice.status === "connecting" ? "Connecting…" : "End conversation"}
+            </button>
+            {voice.status === "live" && (
+              <button onClick={voice.toggleMute}>{voice.muted ? "Unmute" : "Mute"}</button>
+            )}
+            <span className="call-status">
+              {voice.status === "live" &&
+                (voice.muted ? "Muted" : voice.teacherSpeaking ? "Teacher is speaking · talk any time to interrupt" : "Listening…")}
+            </span>
+          </div>
+        )}
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (voiceMode) voice.sendText(input);
-          else void send(input);
-          setInput("");
-        }}
-      >
-        {!voiceMode && (
-          <button type="button" className={`mic${micOn ? " on" : ""}${listening ? " live" : ""}`} onClick={toggleMic} disabled={!recognizer.supported} aria-label={micOn ? "Turn microphone off" : "Turn microphone on"} title={micOn ? "Microphone on. Click to turn off" : "Click to turn the microphone on"}>
-            🎤
-          </button>
-        )}
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={voiceMode && voice.status !== "live" ? "Start the conversation to type as well" : `Type in ${language}…`}
-          disabled={voiceMode && voice.status !== "live"}
-          autoComplete="off"
-        />
-        {!voiceMode && (busy || speaker.speaking) ? (
-          <button type="button" onClick={stopAll}>
-            Stop
-          </button>
-        ) : (
-          <button type="submit" disabled={!input.trim() || (voiceMode && voice.status !== "live")}>
-            Send
-          </button>
-        )}
-      </form>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (voiceMode) voice.sendText(input);
+            else void send(input);
+            setInput("");
+          }}
+        >
+          {!voiceMode && (
+            <button type="button" className={`mic${micOn ? " on" : ""}${listening ? " live" : ""}`} onClick={toggleMic} disabled={!recognizer.supported} aria-label={micOn ? "Turn microphone off" : "Turn microphone on"} title={micOn ? "Microphone on. Click to turn off" : "Click to turn the microphone on"}>
+              🎤
+            </button>
+          )}
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={voiceMode && voice.status !== "live" ? "Start the conversation to type as well" : `Type in ${language}…`}
+            disabled={voiceMode && voice.status !== "live"}
+            autoComplete="off"
+          />
+          {!voiceMode && (busy || speaker.speaking) ? (
+            <button type="button" onClick={stopAll}>
+              Stop
+            </button>
+          ) : (
+            <button type="submit" disabled={!input.trim() || (voiceMode && voice.status !== "live")}>
+              Send
+            </button>
+          )}
+        </form>
+      </div>
     </main>
   );
 }
