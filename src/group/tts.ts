@@ -46,10 +46,10 @@ export function isRateLimited(err: unknown): boolean {
 
 /** Whether the model itself doesn't exist or isn't offered to this account, so no other call will work with it. */
 function isMissingModel(err: unknown): boolean {
-  return statusOf(err) === 404 || /model .*not found|not found.*model|is not supported for|not available/i.test((err as { message?: string } | null)?.message ?? "");
+  return statusOf(err) === 404 || /\bmodel\b[^.|]*\b(not found|does not exist|is not supported)/i.test((err as { message?: string } | null)?.message ?? "");
 }
 
-type Api = "stream" | "interactions" | "classic";
+type Api = "stream" | "classic-stream" | "interactions" | "classic";
 interface Candidate {
   model: string;
   api: Api;
@@ -85,7 +85,25 @@ async function* viaInteractions(ai: GoogleGenAI, model: string, text: string, pr
   if (data) yield pcmFromWav(Buffer.from(data, "base64"));
 }
 
-/** The classic text-to-speech call, used by models that don't take the Interactions API. */
+/** The classic text-to-speech call with streaming: audio as it is generated, for models and setups (such as Vertex AI) without the Interactions API. */
+async function* viaGenerateContentStream(ai: GoogleGenAI, model: string, text: string, profile: CharacterProfile): AsyncGenerator<Buffer> {
+  const stream = await ai.models.generateContentStream({
+    model,
+    contents: [{ parts: [{ text: `Say in a ${profile.ttsStyle} way: ${text}` }] }],
+    config: { responseModalities: [Modality.AUDIO], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: profile.voice } } } },
+  });
+  let first = true;
+  for await (const response of stream) {
+    for (const part of response.candidates?.[0]?.content?.parts ?? []) {
+      if (!part.inlineData?.data) continue;
+      let chunk: Buffer = Buffer.from(part.inlineData.data, "base64");
+      if (first) (chunk = pcmFromWav(chunk)), (first = false);
+      if (chunk.length) yield chunk;
+    }
+  }
+}
+
+/** The classic text-to-speech call, the whole line at once. */
 async function* viaGenerateContent(ai: GoogleGenAI, model: string, text: string, profile: CharacterProfile): AsyncGenerator<Buffer> {
   const response = await ai.models.generateContent({
     model,
@@ -112,7 +130,7 @@ interface EngineOptions {
 /**
  * Turns lines into speech in each character's own natural Gemini voice, quickly and robustly:
  * - audio is streamed as it is generated, so a line starts playing after its first chunk, not after the last;
- * - it tries each speech model with the streaming call, the single-response call and the classic call,
+ * - it tries each speech model with the streaming call, the classic streaming call, the single-response call and the classic call,
  *   remembers what worked, and never retries a model that doesn't exist;
  * - it waits out a rate limit once (speech models allow few requests per minute) and keeps few requests at a time;
  * - after everything has failed it stops trying for a short while, so the browser voice takes over without a delay.
@@ -136,7 +154,7 @@ export class SpeechEngine {
     options: EngineOptions = {},
   ) {
     const models = options.models ?? DEFAULT_MODELS;
-    this.candidates = models.flatMap((model) => (["stream", "interactions", "classic"] as const).map((api) => ({ model, api })));
+    this.candidates = models.flatMap((model) => (["stream", "classic-stream", "interactions", "classic"] as const).map((api) => ({ model, api })));
     this.concurrency = options.concurrency ?? 2;
     this.sleep = options.sleep ?? delay;
     this.now = options.now ?? Date.now;
@@ -171,7 +189,7 @@ export class SpeechEngine {
       for (;;) {
         let yielded = false;
         try {
-          const call = candidate.api === "stream" ? viaStream : candidate.api === "interactions" ? viaInteractions : viaGenerateContent;
+          const call = { stream: viaStream, "classic-stream": viaGenerateContentStream, interactions: viaInteractions, classic: viaGenerateContent }[candidate.api];
           for await (const chunk of call(ai, candidate.model, text, profile)) {
             if (!yielded) this.working = candidate;
             yielded = true;

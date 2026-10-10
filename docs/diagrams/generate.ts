@@ -1,24 +1,32 @@
-// Draws the architecture diagrams in this folder as SVG files: `node docs/diagrams/generate.mjs`.
+// Draws the architecture diagrams in this folder as SVG files: `npm run diagrams`.
 // The PNG copies were rendered from the SVGs in a browser.
 import { writeFileSync } from "node:fs";
 
 const OUT = new URL(".", import.meta.url).pathname;
 const C = { blue: "#1a73e8", green: "#2e9e5b", purple: "#8e44ad", orange: "#d98324", red: "#c62828", ink: "#1b2430", grey: "#5b6675", line: "#3b4656" };
 const FILL = { blue: "#eaf2fe", green: "#e9f6ee", purple: "#f4ebfa", orange: "#fdf1e0", red: "#fdecec", white: "#ffffff" };
-const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-const text = (x, y, s, { size = 15, weight = 400, fill = C.ink, anchor = "start", halo = false, italic = false } = {}) =>
+/** A colour from the palette that can fill a card, zone or circle. */
+type Tone = "blue" | "green" | "purple" | "orange" | "red";
+interface TextOptions { size?: number; weight?: number; fill?: string; anchor?: "start" | "middle" | "end"; halo?: boolean; italic?: boolean }
+interface RectOptions { fill?: string; stroke?: string; sw?: number; rx?: number; dash?: string }
+interface ArrowOptions { color?: string; dash?: string; sw?: number }
+interface MessageOptions { dash?: boolean; color?: string; sub?: string }
+
+const esc = (s: unknown) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const text = (x: number, y: number, s: string, { size = 15, weight = 400, fill = C.ink, anchor = "start", halo = false, italic = false }: TextOptions = {}) =>
   `<text x="${x}" y="${y}" font-size="${size}" font-weight="${weight}" fill="${fill}" text-anchor="${anchor}"${italic ? ' font-style="italic"' : ""}${halo ? ' stroke="#fff" stroke-width="5" paint-order="stroke" stroke-linejoin="round"' : ""}>${esc(s)}</text>`;
-const lines = (x, y, arr, opts = {}) => arr.map((s, i) => text(x, y + i * (opts.size ?? 15) * 1.45, s, opts)).join("");
-const rect = (x, y, w, h, { fill = "#fff", stroke = C.line, sw = 2, rx = 14, dash = "" } = {}) =>
+const lines = (x: number, y: number, arr: string[], opts: TextOptions = {}) => arr.map((s, i) => text(x, y + i * (opts.size ?? 15) * 1.45, s, opts)).join("");
+const rect = (x: number, y: number, w: number, h: number, { fill = "#fff", stroke = C.line, sw = 2, rx = 14, dash = "" }: RectOptions = {}) =>
   `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
-const card = (x, y, w, h, color, title, body = [], { titleSize = 18 } = {}) =>
+const card = (x: number, y: number, w: number, h: number, color: Tone, title: string, body: string[] = [], { titleSize = 18 }: { titleSize?: number } = {}) =>
   rect(x, y, w, h, { fill: FILL[color], stroke: C[color] }) + text(x + 18, y + 30, title, { size: titleSize, weight: 700, fill: C[color] }) + lines(x + 18, y + 56, body, { size: 14.5, fill: C.ink });
-const arrow = (d, { color = C.line, dash = "", sw = 2.4 } = {}) => `<path d="${d}" fill="none" stroke="${color}" stroke-width="${sw}"${dash ? ` stroke-dasharray="${dash}"` : ""} marker-end="url(#ah-${colorKey(color)})"/>`;
-const colorKey = (c) => Object.entries(C).find(([, v]) => v === c)?.[0] ?? "line";
+const arrow = (d: string, { color = C.line, dash = "", sw = 2.4 }: ArrowOptions = {}) => `<path d="${d}" fill="none" stroke="${color}" stroke-width="${sw}"${dash ? ` stroke-dasharray="${dash}"` : ""} marker-end="url(#ah-${colorKey(color)})"/>`;
+const colorKey = (c: string) => Object.entries(C).find(([, v]) => v === c)?.[0] ?? "line";
 const markers = Object.entries(C).map(([k, v]) => `<marker id="ah-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="13" markerHeight="13" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="${v}"/></marker>`).join("");
 
-function svg(w, h, title, subtitle, body) {
+function svg(w: number, h: number, title: string, subtitle: string, body: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" font-family="Inter, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
 <defs>${markers}</defs>
 <rect width="${w}" height="${h}" fill="#ffffff"/>
@@ -27,8 +35,8 @@ ${text(40, 82, subtitle, { size: 15.5, fill: C.grey })}
 ${body}
 </svg>`;
 }
-const zone = (x, y, w, h, color, label) => rect(x, y, w, h, { fill: FILL[color], stroke: C[color], sw: 2, rx: 20 }) + text(x + 20, y + 30, label, { size: 14, weight: 800, fill: C[color] });
-const circle = (cx, cy, r, color, label) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${C[color]}"/>` + text(cx, cy + 5, label, { size: 14, weight: 800, fill: "#fff", anchor: "middle" });
+const zone = (x: number, y: number, w: number, h: number, color: Tone, label: string) => rect(x, y, w, h, { fill: FILL[color], stroke: C[color], sw: 2, rx: 20 }) + text(x + 20, y + 30, label, { size: 14, weight: 800, fill: C[color] });
+const circle = (cx: number, cy: number, r: number, color: Tone, label: string) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${C[color]}"/>` + text(cx, cy + 5, label, { size: 14, weight: 800, fill: "#fff", anchor: "middle" });
 
 // ---------------------------------------------------------------- 1. overview
 {
@@ -57,7 +65,7 @@ const circle = (cx, cy, r, color, label) => `<circle cx="${cx}" cy="${cy}" r="${
   b += card(1185, 260, 210, 160, "purple", "Text models", ["Conductor:", "JSON next · to · direction", "Speaker:", "one line, streamed"]);
   b += card(1185, 480, 210, 100, "purple", "Speech models", ["each character's own", "voice → 24 kHz audio"]);
 
-  const lab = (x, y, s, o = {}) => text(x, y, s, { size: 13, anchor: "middle", halo: true, weight: 600, ...o });
+  const lab = (x: number, y: number, s: string, o: TextOptions = {}) => text(x, y, s, { size: 13, anchor: "middle", halo: true, weight: 600, ...o });
   b += arrow("M450 300 L660 300") + lab(555, 286, "round request") + lab(555, 322, "transcript · scene · name", { size: 11.5, weight: 400, fill: C.grey });
   b += arrow("M660 350 L450 350", { dash: "7 5", color: C.blue }) + lab(555, 340, "events: start · delta · end · done", { size: 11.5, weight: 400, fill: C.blue });
   b += arrow("M980 330 L1185 330") + lab(1082, 316, "decide · speak");
@@ -137,15 +145,15 @@ const circle = (cx, cy, r, color, label) => `<circle cx="${cx}" cy="${cy}" r="${
 {
   let b = "";
   const X = { s: 140, b: 470, v: 810, g: 1150 };
-  const head = (x, label, color) => rect(x - 90, 100, 180, 46, { fill: FILL[color], stroke: C[color] }) + text(x, 130, label, { size: 16, weight: 800, fill: C[color], anchor: "middle" });
+  const head = (x: number, label: string, color: Tone) => rect(x - 90, 100, 180, 46, { fill: FILL[color], stroke: C[color] }) + text(x, 130, label, { size: 16, weight: 800, fill: C[color], anchor: "middle" });
   b += head(X.s, "Student", "green") + head(X.b, "Browser", "green") + head(X.v, "Server  (LangGraph)", "blue") + head(X.g, "Gemini", "purple");
   for (const x of Object.values(X)) b += `<line x1="${x}" y1="146" x2="${x}" y2="980" stroke="#c4cbd6" stroke-width="2" stroke-dasharray="5 6"/>`;
-  const msg = (from, to, y, label, { dash = false, color = C.line, sub = "" } = {}) => {
+  const msg = (from: keyof typeof X, to: keyof typeof X, y: number, label: string, { dash = false, color = C.line, sub = "" }: MessageOptions = {}) => {
     const x1 = X[from], x2 = X[to], dir = x2 > x1 ? 1 : -1;
     return arrow(`M${x1 + 4 * dir} ${y} L${x2 - 4 * dir} ${y}`, { dash: dash ? "7 5" : "", color }) + text((x1 + x2) / 2, y - 9, label, { size: 13.5, anchor: "middle", halo: true, weight: 600, fill: color === C.line ? C.ink : color }) + (sub ? text((x1 + x2) / 2, y + 17, sub, { size: 12, anchor: "middle", halo: true, fill: C.grey }) : "");
   };
-  const note = (x, y, w, h, color, arr) => rect(x, y, w, h, { fill: FILL[color], stroke: C[color], sw: 1.8, rx: 10 }) + lines(x + 14, y + 24, arr, { size: 13.2 });
-  const num = (n, x, y) => `<circle cx="${x}" cy="${y}" r="13" fill="${C.ink}"/>` + text(x, y + 5, String(n), { size: 13, weight: 800, fill: "#fff", anchor: "middle" });
+  const note = (x: number, y: number, w: number, h: number, color: Tone, arr: string[]) => rect(x, y, w, h, { fill: FILL[color], stroke: C[color], sw: 1.8, rx: 10 }) + lines(x + 14, y + 24, arr, { size: 13.2 });
+  const num = (n: number, x: number, y: number) => `<circle cx="${x}" cy="${y}" r="13" fill="${C.ink}"/>` + text(x, y + 5, String(n), { size: 13, weight: 800, fill: "#fff", anchor: "middle" });
 
   b += msg("s", "b", 190, "types, or speaks into the microphone"); b += num(1, 56, 190);
   b += note(330, 212, 290, 50, "green", ["interrupt(): stop the audio, cancel any", "request still running"]);
@@ -170,8 +178,8 @@ const circle = (cx, cy, r, color, label) => `<circle cx="${cx}" cy="${cy}" r="${
 // ---------------------------------------------------------------- 5. states
 {
   let b = "";
-  const node = (x, y, w, h, color, title, sub) => rect(x, y, w, h, { fill: FILL[color], stroke: C[color], sw: 2.6, rx: 22 }) + text(x + w / 2, y + 42, title, { size: 22, weight: 800, fill: C[color], anchor: "middle" }) + text(x + w / 2, y + 68, sub, { size: 13.5, fill: C.grey, anchor: "middle" });
-  b += node(70, 250, 220, 100, "grey" in C ? "green" : "green", "idle", "nothing started yet");
+  const node = (x: number, y: number, w: number, h: number, color: Tone, title: string, sub: string) => rect(x, y, w, h, { fill: FILL[color], stroke: C[color], sw: 2.6, rx: 22 }) + text(x + w / 2, y + 42, title, { size: 22, weight: 800, fill: C[color], anchor: "middle" }) + text(x + w / 2, y + 68, sub, { size: 13.5, fill: C.grey, anchor: "middle" });
+  b += node(70, 250, 220, 100, "green", "idle", "nothing started yet");
   b += node(500, 250, 240, 100, "blue", "running", "lines written + spoken");
   b += node(950, 250, 220, 100, "orange", "waiting", "the floor is yours");
   b += arrow("M290 300 L500 300") + text(395, 280, "Start scene,", { size: 13.5, anchor: "middle", halo: true, weight: 600 }) + text(395, 322, "or you say something", { size: 13.5, anchor: "middle", halo: true, weight: 600 });

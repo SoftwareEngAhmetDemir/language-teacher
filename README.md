@@ -37,6 +37,10 @@ On [Render](https://render.com): New → Blueprint → pick this repo. Set `GEMI
 
 **Set `ACCESS_CODE` on any public deployment.** Without it anyone with the URL can use your Gemini quota. When it is set, the app asks for the code before it works.
 
+## Choosing a region
+
+With a plain `GEMINI_API_KEY` the requests go to one global endpoint. Vertex AI lets you use a nearby region, which measured about twice as fast to answer from Turkey (Milan, 72 ms against 156 ms). See [docs/regions.md](docs/regions.md), and measure your own connection with `npm run probe:regions`.
+
 ## Configuration
 
 See [.env.example](.env.example) for all options (models, thinking level, voice, Vertex AI region, call limit).

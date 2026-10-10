@@ -8,7 +8,9 @@
     "start": "node --env-file-if-exists=.env --import tsx src/server.ts",
     "build": "npm --prefix web ci && npm --prefix web run build",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"src/**/*.test.ts\""
+    "probe:regions": "node --import tsx scripts/probe-regions.ts",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "diagrams": "node --import tsx docs/diagrams/generate.ts"
   },
   "dependencies": {
     "@google/genai": "^2.28.0",

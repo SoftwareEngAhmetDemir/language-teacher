@@ -358,6 +358,20 @@ describe("speech synthesis", () => {
     assert.deepEqual(tried, ["m2/classic"], "the option that worked is tried first next time");
   });
 
+  it("streams through the classic call too, for setups without the Interactions API such as Vertex AI", async () => {
+    const ai = {
+      interactions: { create: async () => { throw new Error("The Interactions API is not available here"); } },
+      models: {
+        generateContentStream: async () => (async function* () {
+          yield { candidates: [{ content: { parts: [{ inlineData: { data: pcmOf(1, 2).toString("base64") } }] } }] };
+          yield { candidates: [{ content: { parts: [{ inlineData: { data: pcmOf(3).toString("base64") } }] } }] };
+        })(),
+      },
+    };
+    const chunks = await collect(engine(ai).stream("Merhaba", "luna"));
+    assert.deepEqual(chunks.map((c) => c.length), [4, 2]);
+  });
+
   it("never retries a model that doesn't exist", async () => {
     const tried: string[] = [];
     const ai = {
