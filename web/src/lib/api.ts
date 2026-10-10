@@ -82,3 +82,16 @@ export async function* streamReply(
     }
   }
 }
+
+/** Translates a piece of transcript text into one of the supported languages. */
+export async function translate(text: string, target: string, signal?: AbortSignal): Promise<string> {
+  const res = await fetch("/api/translate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-access-code": getCode() },
+    body: JSON.stringify({ text, target }),
+    signal,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error ?? res.statusText);
+  return body.translation as string;
+}

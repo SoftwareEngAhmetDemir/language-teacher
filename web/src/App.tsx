@@ -6,6 +6,8 @@ import { useRecognizer } from "./hooks/useRecognizer";
 import { useSpeaker } from "./hooks/useSpeaker";
 import { useVoiceConversation } from "./hooks/useVoiceConversation";
 import { CHARACTERS, DEFAULT_CHARACTER } from "./avatar/characters";
+import MessageTools from "./components/MessageTools";
+import { loadPref, savePref } from "./lib/prefs";
 
 const LEVEL_NAMES: Record<string, string> = {
   A1: "A1 · Beginner",
@@ -22,22 +24,6 @@ const VrmTeacher = lazy(() => import("./avatar/Avatar"));
 const CartoonTeacher = lazy(() => import("./avatar/CartoonAvatar"));
 
 const START_LESSON = "Hello! Please start our lesson.";
-
-function loadPref(key: string, fallback: string): string {
-  try {
-    return localStorage.getItem(key) ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function savePref(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Preferences are a convenience only.
-  }
-}
 
 export default function App() {
   const [config, setConfig] = useState<Config | null>(null);
@@ -216,6 +202,10 @@ export default function App() {
   const showTranscript = transcriptPref ? transcriptPref === "on" : !voiceMode;
   // Errors stay visible even when the transcript is hidden.
   const visible = showTranscript ? shown : shown.filter((m) => m.error);
+  const languageNames = config?.languages.map((l) => l.name) ?? [];
+  const defaultTranslation = language === "English" ? "Turkish" : "English";
+  // In text chat the reply is still arriving; wait until it is complete before offering to translate it.
+  const streamingId = busy ? messages[messages.length - 1]?.id : undefined;
 
   if (loadError) {
     return (
@@ -413,16 +403,22 @@ export default function App() {
           </div>
         )}
         {visible.map((m) => (
-          <div key={m.id} className={`msg ${m.role}${m.error ? " error" : ""}${m.open ? " open" : ""}`}>
-            {m.text || "…"}
-            {m.interrupted && <span className="cut"> —</span>}
-            {!voiceMode && m.role === "assistant" && m.text && !m.error && (
-              <div className="meta">
-                <button className="link" onClick={() => { speaker.stop(); speaker.speakText(m.text); }}>
-                  🔊 Replay
-                </button>
-                {m.timing && <span>{m.timing}</span>}
-              </div>
+          <div key={m.id} className={`entry ${m.role}`}>
+            <div className={`msg ${m.role}${m.error ? " error" : ""}${m.open ? " open" : ""}`}>
+              {m.text || "…"}
+              {m.interrupted && <span className="cut"> —</span>}
+            </div>
+            {m.text && !m.error && !m.open && m.id !== streamingId && (
+              <MessageTools text={m.text} role={m.role} languages={languageNames} defaultTarget={defaultTranslation}>
+                {!voiceMode && m.role === "assistant" && (
+                  <>
+                    <button type="button" className="chip" onClick={() => { speaker.stop(); speaker.speakText(m.text); }}>
+                      🔊 Replay
+                    </button>
+                    {m.timing && <span className="timing">{m.timing}</span>}
+                  </>
+                )}
+              </MessageTools>
             )}
           </div>
         ))}

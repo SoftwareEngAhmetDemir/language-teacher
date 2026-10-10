@@ -17,6 +17,10 @@ npm run dev                 # backend on http://localhost:3000
 cd web && npm install && npm run dev   # frontend, open the URL it prints
 ```
 
+## Translating the transcript
+
+Every message in the transcript has a **Translate** button. It opens a language picker and shows the translation underneath, with a Copy button. Translations are cached per message, so switching languages back and forth is instant, and the last language you picked is remembered. The server does the translation through the same text model as the chat (`POST /api/translate`, limited to the supported languages and 2,000 characters), and it also asks for the access code when one is set.
+
 ## Deploy
 
 The Dockerfile builds the frontend and serves everything from one Node process. The app needs a host that supports WebSockets and long-lived connections, so static or serverless hosts such as Vercel and Netlify will not work.

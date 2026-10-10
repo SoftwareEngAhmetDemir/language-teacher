@@ -55,3 +55,48 @@ form input { flex: 1; min-width: 0; }
 .toggle { font-size: 0.85rem; padding: 0.35rem 0.8rem; border-radius: 2rem; border: 1px solid var(--muted); background: var(--muted); color: inherit; }
 .toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .log.collapsed { min-height: 0; flex: 0 0 auto; }
+
+/* Message layout: the bubble, then its tools underneath. */
+.entry { display: flex; flex-direction: column; max-width: 85%; }
+.entry.user { align-self: flex-end; align-items: flex-end; }
+.entry.assistant { align-self: flex-start; align-items: flex-start; }
+.entry .msg { max-width: none; }
+
+.tools { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.35rem; width: 100%; }
+.tools.user { align-items: flex-end; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; font-size: 0.75rem; }
+.tools.user .actions { justify-content: flex-end; }
+.timing { opacity: 0.55; }
+.chip {
+  font: inherit; font-size: 0.75rem; padding: 0.2rem 0.65rem; border-radius: 2rem; cursor: pointer; color: inherit;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent); background: transparent; opacity: 0.8;
+  transition: background 0.15s, opacity 0.15s, border-color 0.15s;
+}
+.chip:hover, .chip.active { opacity: 1; background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+
+.translation {
+  position: relative; width: 100%; min-width: min(20rem, 100%); padding: 0.75rem 0.95rem 0.85rem 1.1rem; border-radius: 1rem;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 13%, transparent), color-mix(in srgb, #8e44ad 11%, transparent));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 10%, transparent);
+  animation: rise 0.25s ease both;
+}
+.translation::before { content: ""; position: absolute; left: 0.4rem; top: 0.75rem; bottom: 0.75rem; width: 3px; border-radius: 3px; background: linear-gradient(var(--accent), #8e44ad); }
+.translation-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.lang-picker { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; }
+.lang-picker select {
+  appearance: none; font: inherit; font-size: 0.85rem; text-transform: none; letter-spacing: 0; color: inherit; cursor: pointer;
+  padding: 0.3rem 1.8rem 0.3rem 0.8rem; border-radius: 2rem; border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, Canvas 70%, transparent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 0.7rem center;
+}
+.translation-buttons { display: flex; gap: 0.35rem; }
+.icon { font: inherit; font-size: 0.75rem; padding: 0.25rem 0.6rem; border-radius: 2rem; border: 0; cursor: pointer; color: inherit; background: color-mix(in srgb, currentColor 8%, transparent); }
+.icon:hover { background: color-mix(in srgb, currentColor 16%, transparent); }
+.translation-text { margin: 0.6rem 0 0; font-size: 1.02rem; line-height: 1.6; white-space: pre-wrap; animation: rise 0.25s ease both; }
+.translation-error { margin: 0.6rem 0 0; font-size: 0.85rem; color: #c62828; }
+.skeleton { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.75rem; }
+.skeleton span { display: block; height: 0.7rem; border-radius: 0.4rem; background: linear-gradient(90deg, var(--muted), rgba(127, 127, 127, 0.32), var(--muted)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+.skeleton span:last-child { width: 60%; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .translation, .translation-text, .skeleton span { animation: none; } }

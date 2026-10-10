@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { codeOk, requiresCode } from "./access.js";
 import { LANGUAGES, LEVELS, parseProfile } from "./teacher.js";
 import { textSend } from "./text.js";
+import { translate } from "./translate.js";
 import { voiceServer } from "./voice.js";
 
 const app = express();
@@ -25,6 +26,30 @@ app.get("/api/config", (_req, res) => {
 app.post("/api/access", (req, res) => {
   if (codeOk(req.body?.code)) res.json({ ok: true });
   else res.status(401).json({ error: "Wrong access code" });
+});
+
+/** Translates one transcript message into a language from the supported list. */
+app.post("/api/translate", async (req, res) => {
+  if (!codeOk(req.get("x-access-code"))) {
+    res.status(401).json({ error: "Access code required" });
+    return;
+  }
+  const { text, target } = req.body ?? {};
+  const language = LANGUAGES.find((l) => typeof target === "string" && l.name.toLowerCase() === target.toLowerCase());
+  if (!language) {
+    res.status(400).json({ error: "`target` must be one of the supported languages" });
+    return;
+  }
+  if (typeof text !== "string" || !text.trim() || text.length > 2000) {
+    res.status(400).json({ error: "`text` must be a non-empty string (max 2000 chars)" });
+    return;
+  }
+  try {
+    res.json({ translation: await translate(text, language.name) });
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: err instanceof Error ? err.message : "Translation failed" });
+  }
 });
 
 /** Streams the teacher's reply as server-sent events: {delta}, then {done} or {error}. */

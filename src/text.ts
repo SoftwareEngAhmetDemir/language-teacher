@@ -1,11 +1,8 @@
-import { ThinkingLevel, type Chat } from "@google/genai";
+import type { Chat } from "@google/genai";
 import { getClient } from "./client.js";
+import { TEXT_MODEL, thinkingConfig } from "./models.js";
 import { buildSystemInstruction, type Profile } from "./teacher.js";
 
-// Fastest stable text model per Google's model list.
-const MODEL = process.env.GEMINI_TEXT_MODEL ?? "gemini-3.5-flash-lite";
-// Minimal thinking = lowest latency. Set THINKING_LEVEL=off to not send the setting.
-const THINKING = process.env.THINKING_LEVEL ?? "MINIMAL";
 const IDLE_MS = 10 * 60_000;
 
 interface Entry {
@@ -29,10 +26,10 @@ function getEntry(id: string, profile: Profile): Entry {
     entry = {
       key: profile.key,
       chat: getClient().chats.create({
-        model: MODEL,
+        model: TEXT_MODEL,
         config: {
           systemInstruction: buildSystemInstruction(profile),
-          ...(THINKING !== "off" && { thinkingConfig: { thinkingLevel: THINKING as ThinkingLevel } }),
+          ...thinkingConfig,
         },
       }),
       queue: Promise.resolve(),
