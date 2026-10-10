@@ -1,11 +1,11 @@
 import { Modality, type LiveServerMessage, type Session } from "@google/genai";
 import { WebSocketServer, type WebSocket } from "ws";
 import { codeOk } from "./access.js";
+import { voiceFor } from "./characters.js";
 import { getClient } from "./client.js";
 import { buildSystemInstruction, parseProfile } from "./teacher.js";
 
 const MODEL = process.env.GEMINI_LIVE_MODEL ?? "gemini-3.8-live";
-const VOICE = process.env.GEMINI_VOICE; // e.g. "Kore"; unset = the model's default voice
 const MAX_CALLS = Number(process.env.MAX_VOICE_CALLS ?? 5);
 const START_TIMEOUT_MS = 10_000;
 
@@ -51,13 +51,15 @@ voiceServer.on("connection", (ws: WebSocket) => {
     if (content.turnComplete) send({ type: "turn_complete" });
   };
 
-  async function start(language: unknown, level: unknown, code: unknown) {
+  async function start(language: unknown, level: unknown, character: unknown, code: unknown) {
     if (!codeOk(code)) return fail("Access code required");
-    const profile = parseProfile(language, level);
+    const profile = parseProfile(language, level, character);
     if (!profile) return fail("Unsupported language or level");
     if (activeCalls >= MAX_CALLS) return fail("Too many active conversations, try again shortly");
     activeCalls++;
     counted = true;
+    // Each character has its own voice, set when the call starts.
+    const voice = voiceFor(profile.character);
 
     try {
       const live = await getClient().live.connect({
@@ -69,7 +71,7 @@ voiceServer.on("connection", (ws: WebSocket) => {
           outputAudioTranscription: {},
           // Lets a call run past the default 15-minute audio session limit.
           contextWindowCompression: { slidingWindow: {} },
-          ...(VOICE && { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } } }),
+          ...(voice && { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } }),
         },
         callbacks: {
           onopen: () => {},
@@ -96,7 +98,7 @@ voiceServer.on("connection", (ws: WebSocket) => {
       session?.sendRealtimeInput({ audio: { data: (data as Buffer).toString("base64"), mimeType: "audio/pcm;rate=16000" } });
       return;
     }
-    let msg: { type?: string; language?: unknown; level?: unknown; code?: unknown; text?: unknown };
+    let msg: { type?: string; language?: unknown; level?: unknown; character?: unknown; code?: unknown; text?: unknown };
     try {
       msg = JSON.parse(data.toString());
     } catch {
@@ -105,7 +107,7 @@ voiceServer.on("connection", (ws: WebSocket) => {
     if (msg.type === "start" && !starting) {
       starting = true;
       clearTimeout(startTimer);
-      void start(msg.language, msg.level, msg.code);
+      void start(msg.language, msg.level, msg.character, msg.code);
     } else if (msg.type === "text" && typeof msg.text === "string" && msg.text.trim()) {
       session?.sendRealtimeInput({ text: msg.text.slice(0, 2000) });
     }

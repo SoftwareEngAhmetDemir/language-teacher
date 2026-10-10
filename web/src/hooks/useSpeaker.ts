@@ -28,7 +28,7 @@ function voicesLoaded(): Promise<void> {
 }
 
 /** Text-to-speech through the browser's speechSynthesis, in the given BCP-47 language. */
-export function useSpeaker(tag: string) {
+export function useSpeaker(tag: string, style: { pitch: number; rate: number } = { pitch: 1, rate: 1 }) {
   const [speaking, setSpeaking] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [allLoaded, setAllLoaded] = useState(false);
@@ -36,6 +36,9 @@ export function useSpeaker(tag: string) {
   const [rate, setRateState] = useState(() => Number(loadPref("rate")) || DEFAULT_RATE);
   const rateRef = useRef(rate);
   rateRef.current = rate;
+  // The character's own pitch and pace, kept in a ref so sentences queued earlier keep using the latest.
+  const styleRef = useRef(style);
+  styleRef.current = style;
   const pending = useRef(0);
   // Bumped on stop() so late events from cancelled utterances are ignored.
   const generation = useRef(0);
@@ -106,7 +109,8 @@ export function useSpeaker(tag: string) {
         // (usually English) voice and mispronounce letters like ş, so always set one when we can.
         utterance.lang = chosen?.lang ?? tag;
         if (chosen) utterance.voice = chosen;
-        utterance.rate = rateRef.current;
+        utterance.rate = Math.min(2, Math.max(0.5, rateRef.current * styleRef.current.rate));
+        utterance.pitch = Math.min(2, Math.max(0, styleRef.current.pitch));
         utterance.onend = finish;
         utterance.onerror = finish;
         speechSynthesis.speak(utterance);

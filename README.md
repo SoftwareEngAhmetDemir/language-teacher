@@ -17,6 +17,10 @@ npm run dev                 # backend on http://localhost:3000
 cd web && npm install && npm run dev   # frontend, open the URL it prints
 ```
 
+## Each teacher has their own voice
+
+In voice calls every character speaks with a different Gemini voice and personality: Professor Whiskers is calm and wise (Sadaltager), Ms. Luna warm and gentle (Sulafat), Coach Rex energetic (Fenrir), Robo-Tutor clear and even (Iapetus) and the anime teacher bright and breezy (Aoede). The voice and the personality text are chosen on the server from the character id (`src/characters.ts`), and the call has to be restarted to change them, so switching teacher starts a new conversation. Google does not label voices as male or female, so these are matched to its style descriptions; change them in that file if one doesn't suit. In text chat the browser's own voice is used, with a different pitch and pace per character (`web/src/avatar/characters.ts`).
+
 ## Translating the transcript
 
 Every message in the transcript has a **Translate** button. It opens a language picker and shows the translation underneath, with a Copy button. Translations are cached per message, so switching languages back and forth is instant, and the last language you picked is remembered. The server does the translation through the same text model as the chat (`POST /api/translate`, limited to the supported languages and 2,000 characters), and it also asks for the access code when one is set.

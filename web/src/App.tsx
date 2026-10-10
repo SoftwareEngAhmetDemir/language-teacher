@@ -67,12 +67,13 @@ export default function App() {
   }, []);
 
   const speechTag = config?.languages.find((l) => l.name === language)?.speechTag ?? "en-US";
+  const character = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0];
   const lesson = useMemo<Lesson>(
-    () => ({ sessionId, language, level }),
-    [sessionId, language, level],
+    () => ({ sessionId, language, level, character: character.id }),
+    [sessionId, language, level, character.id],
   );
 
-  const speaker = useSpeaker(speechTag);
+  const speaker = useSpeaker(speechTag, character.speech);
   const voice = useVoiceConversation();
   const voiceMode = engine === "voice";
   const teacherState = {
@@ -80,7 +81,6 @@ export default function App() {
     speaking: voiceMode ? voice.teacherSpeaking : speaker.speaking,
     attentive: voiceMode && voice.status === "live" && !voice.teacherSpeaking,
   };
-  const character = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0];
   const recognizer = useRecognizer({
     lang: speechTag,
     onInterim: setInterim,
@@ -298,8 +298,11 @@ export default function App() {
             value={character.id}
             disabled={!showTeacher}
             onChange={(e) => {
-              setCharacterId(e.target.value);
-              savePref("character", e.target.value);
+              // A different teacher means a different voice and personality, so start a fresh conversation.
+              newConversation(() => {
+                setCharacterId(e.target.value);
+                savePref("character", e.target.value);
+              });
             }}
           >
             {CHARACTERS.map((c) => (

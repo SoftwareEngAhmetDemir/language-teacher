@@ -20,9 +20,15 @@ export interface Look {
   robot?: { glow: number };
 }
 
+/** Pitch and pace multipliers for the browser's built-in voice, used in text chat. Voice calls use Gemini voices chosen on the server. */
+export interface SpeechStyle {
+  pitch: number;
+  rate: number;
+}
+
 export type Character =
-  | { id: string; name: string; kind: "cartoon"; look: Look; credit?: string }
-  | { id: string; name: string; kind: "vrm"; url: string; credit?: string };
+  | { id: string; name: string; kind: "cartoon"; look: Look; speech: SpeechStyle; credit?: string }
+  | { id: string; name: string; kind: "vrm"; url: string; speech: SpeechStyle; credit?: string };
 
 export const CHARACTERS: Character[] = [
   {
@@ -42,6 +48,7 @@ export const CHARACTERS: Character[] = [
       collar: true,
       bowTie: 0xd62839,
     },
+    speech: { pitch: 0.8, rate: 0.95 },
   },
   {
     id: "luna",
@@ -58,6 +65,7 @@ export const CHARACTERS: Character[] = [
       body: 0x7a4fb5,
       collar: true,
     },
+    speech: { pitch: 1.2, rate: 1.0 },
   },
   {
     id: "rex",
@@ -74,6 +82,7 @@ export const CHARACTERS: Character[] = [
       body: 0xe64a19,
       whistle: true,
     },
+    speech: { pitch: 0.65, rate: 1.12 },
   },
   {
     id: "robot",
@@ -88,8 +97,9 @@ export const CHARACTERS: Character[] = [
       body: 0x5c7cfa,
       robot: { glow: 0x00e5ff },
     },
+    speech: { pitch: 0.55, rate: 0.95 },
   },
-  { id: "anime", name: "Anime teacher", kind: "vrm", url: "/models/teacher.vrm" },
+  { id: "anime", name: "Anime teacher", kind: "vrm", url: "/models/teacher.vrm", speech: { pitch: 1.35, rate: 1.08 } },
 ];
 
 export const DEFAULT_CHARACTER = CHARACTERS[0].id;

@@ -119,7 +119,9 @@ export class LiveConversation {
     private player: Player,
   ) {}
 
-  static async start(lesson: { language: string; level: string }, handlers: Handlers): Promise<LiveConversation> {
+  static async start(
+    lesson: { language: string; level: string; character: string },
+    handlers: Handlers): Promise<LiveConversation> {
     // The browser's echo cancellation stops the teacher's voice from being picked up as the student's.
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },

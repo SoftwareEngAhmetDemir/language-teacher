@@ -1,3 +1,5 @@
+import { CHARACTER_VOICES, DEFAULT_CHARACTER } from "./characters.js";
+
 /** Languages the teacher supports. `speechTag` is the BCP-47 tag the browser uses for voice. */
 export const LANGUAGES = [
   { name: "English", speechTag: "en-US" },
@@ -33,20 +35,24 @@ export const LEVELS = Object.keys(LEVEL_GUIDE) as Level[];
 export interface Profile {
   language: string;
   level: Level;
+  /** Which teacher character is talking; decides the personality and, in voice calls, the voice. */
+  character: string;
   /** Changes whenever the teacher prompt would change. */
   key: string;
 }
 
 /** Validates client input against the allowlists, so nothing user-controlled reaches the prompt. */
-export function parseProfile(language: unknown, level: unknown): Profile | null {
+export function parseProfile(language: unknown, level: unknown, character?: unknown): Profile | null {
   if (typeof language !== "string" || typeof level !== "string") return null;
   const lang = LANGUAGES.find((l) => l.name.toLowerCase() === language.trim().toLowerCase());
   const lvl = LEVELS.find((l) => l === level.trim().toUpperCase());
   if (!lang || !lvl) return null;
-  return { language: lang.name, level: lvl, key: `${lang.name}|${lvl}` };
+  const who = typeof character === "string" && Object.hasOwn(CHARACTER_VOICES, character) ? character : DEFAULT_CHARACTER;
+  return { language: lang.name, level: lvl, character: who, key: `${lang.name}|${lvl}|${who}` };
 }
 
-export function buildSystemInstruction({ language, level }: Profile): string {
+export function buildSystemInstruction({ language, level, character }: Profile): string {
+  const persona = CHARACTER_VOICES[character]?.persona ?? "";
   // C2+ has no ceiling, so the strict-limit rules only apply to the levels below it.
   const strictLimit =
     level === "C2+"
@@ -62,6 +68,9 @@ STRICT LEVEL LIMIT (the most important rule):
 `;
 
   return `You are a friendly, patient ${language} teacher having a spoken conversation with a student. The student's level is ${level} on the CEFR scale.
+
+Your personality: ${persona}
+Personality only changes your tone and manner. It never overrides the language, the level limits or the rules below.
 
 Limits for ${level}: ${LEVEL_GUIDE[level]}
 ${strictLimit}

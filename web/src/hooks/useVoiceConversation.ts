@@ -60,7 +60,7 @@ export function useVoiceConversation() {
   }, []);
 
   const start = useCallback(
-    async (lesson: { language: string; level: string }) => {
+    async (lesson: { language: string; level: string; character: string }) => {
       if (call.current || status !== "idle") return;
       const id = ++callId.current;
       setError(null);

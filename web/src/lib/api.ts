@@ -40,6 +40,8 @@ export interface Lesson {
   sessionId: string;
   language: string;
   level: string;
+  /** Id of the teacher character, which decides the personality and the voice. */
+  character: string;
 }
 
 export async function fetchConfig(): Promise<Config> {
