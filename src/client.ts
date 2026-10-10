@@ -1,11 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 
 /**
- * The Vertex AI region used when none is chosen. Measured from Turkey (`npm run probe:regions`), Milan answers
- * soonest, then Frankfurt and the Netherlands; the Gemini API with a plain key has no region at all and was
- * about twice as slow to answer. All of them offer the Gemini 3.x text, Live and speech models.
+ * The Vertex AI location used when none is chosen: `global`. The nearest regions (Milan, Frankfurt, the Netherlands)
+ * answer sooner on the network, but when this was checked from Turkey they only served the older Gemini 2.5 models;
+ * the Gemini 3.x text, Live and speech models this app uses were available only at the global endpoint, which Google
+ * routes to nearby capacity. `npm run probe:regions` re-checks both the distance and which locations serve a model.
  */
-export const DEFAULT_VERTEX_LOCATION = "europe-west8";
+export const DEFAULT_VERTEX_LOCATION = "global";
 
 type Env = Record<string, string | undefined>;
 
@@ -14,7 +15,7 @@ export type ClientSettings = { vertexai: true; project: string; location: string
 /**
  * Gemini Developer API by default (GEMINI_API_KEY): one global endpoint, no region to choose.
  * Set GOOGLE_GENAI_USE_VERTEXAI=true to use Vertex AI instead, where requests go to a region close to you:
- * GOOGLE_CLOUD_LOCATION (default europe-west8, Milan), your project in GOOGLE_CLOUD_PROJECT, and sign-in
+ * GOOGLE_CLOUD_LOCATION (default global), your project in GOOGLE_CLOUD_PROJECT, and sign-in
  * through Application Default Credentials (`gcloud auth application-default login`).
  */
 export function clientSettings(env: Env = process.env): ClientSettings {
@@ -35,6 +36,6 @@ export function getClient(): GoogleGenAI {
     console.log(`Gemini: Vertex AI, region ${settings.location}`);
     return (client = new GoogleGenAI(settings));
   }
-  console.log("Gemini: Developer API (no region; Vertex AI in a nearby region is faster, see docs/regions.md)");
+  console.log("Gemini: Developer API (no region choice, see docs/regions.md)");
   return (client = new GoogleGenAI({ apiKey: settings.apiKey }));
 }

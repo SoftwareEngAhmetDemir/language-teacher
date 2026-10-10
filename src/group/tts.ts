@@ -8,7 +8,7 @@ export const TTS_SAMPLE_RATE = 24000;
  * Speech models to try, fastest first: the lite model starts talking soonest. Setting GEMINI_TTS_MODEL
  * uses only that one, for example the full-quality `gemini-3.8-flash-tts`.
  */
-const DEFAULT_MODELS = ["gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-preview-tts"];
+const DEFAULT_MODELS = ["gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts", "gemini-3.1-flash-tts-preview", "gemini-2.5-flash-tts", "gemini-2.5-flash-preview-tts"];
 
 /** Finds the PCM samples in a WAV file, or returns the bytes unchanged when there is no WAV header. */
 export function pcmFromWav(bytes: Buffer): Buffer {
@@ -56,6 +56,15 @@ interface Candidate {
 }
 const keyOf = (c: Candidate) => `${c.model}/${c.api}`;
 
+/**
+ * What to send as the text in the classic calls. The 2.5 speech models take "Say in a gentle way: ..." as a
+ * style instruction, but the 3.x speech models read the text word for word, which would speak the instruction
+ * aloud, so they get the line alone (their style needs the Interactions API, where it is separate metadata).
+ */
+export function classicSpeechText(model: string, text: string, profile: CharacterProfile): string {
+  return /^gemini-2\./.test(model) ? `Say in a ${profile.ttsStyle} way: ${text}` : text;
+}
+
 const interactionBody = (model: string, text: string, profile: CharacterProfile) => ({
   model,
   input: [{ type: "user_input" as const, content: [{ type: "text" as const, text, annotations: [{ type: "speech_metadata" as const, style: profile.ttsStyle }] }] }],
@@ -89,7 +98,7 @@ async function* viaInteractions(ai: GoogleGenAI, model: string, text: string, pr
 async function* viaGenerateContentStream(ai: GoogleGenAI, model: string, text: string, profile: CharacterProfile): AsyncGenerator<Buffer> {
   const stream = await ai.models.generateContentStream({
     model,
-    contents: [{ parts: [{ text: `Say in a ${profile.ttsStyle} way: ${text}` }] }],
+    contents: [{ role: "user", parts: [{ text: classicSpeechText(model, text, profile) }] }],
     config: { responseModalities: [Modality.AUDIO], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: profile.voice } } } },
   });
   let first = true;
@@ -107,7 +116,7 @@ async function* viaGenerateContentStream(ai: GoogleGenAI, model: string, text: s
 async function* viaGenerateContent(ai: GoogleGenAI, model: string, text: string, profile: CharacterProfile): AsyncGenerator<Buffer> {
   const response = await ai.models.generateContent({
     model,
-    contents: [{ parts: [{ text: `Say in a ${profile.ttsStyle} way: ${text}` }] }],
+    contents: [{ role: "user", parts: [{ text: classicSpeechText(model, text, profile) }] }],
     config: { responseModalities: [Modality.AUDIO], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: profile.voice } } } },
   });
   const data = response.candidates?.[0]?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData?.data;

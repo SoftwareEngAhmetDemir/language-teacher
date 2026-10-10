@@ -18,7 +18,7 @@ export interface GroupLLM {
 
 const CONDUCTOR_MODEL = process.env.GEMINI_CONDUCTOR_MODEL ?? TEXT_MODEL;
 /** A conductor that is slow is not worth waiting for: after this the rules choose the speaker. */
-const CONDUCTOR_TIMEOUT_MS = Number(process.env.GROUP_CONDUCTOR_TIMEOUT_MS ?? 1500);
+const CONDUCTOR_TIMEOUT_MS = Number(process.env.GROUP_CONDUCTOR_TIMEOUT_MS ?? 2500);
 
 export const geminiGroupLLM: GroupLLM = {
   async decide(req, signal) {

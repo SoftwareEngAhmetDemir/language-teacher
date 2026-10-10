@@ -444,6 +444,24 @@ describe("speech synthesis", () => {
     assert.equal(peak, 2);
   });
 
+  it("sends the classic call a user role, and the style instruction only to models that treat it as one", async () => {
+    const seen: { role?: string; text?: string }[] = [];
+    const ai = {
+      interactions: { create: async () => { throw new Error("The Interactions API is not available here"); } },
+      models: {
+        generateContentStream: async (p: { model: string; contents: { role?: string; parts: { text: string }[] }[] }) => {
+          seen.push({ role: p.contents[0].role, text: p.contents[0].parts[0].text });
+          return (async function* () { yield { candidates: [{ content: { parts: [{ inlineData: { data: audio } }] } }] }; })();
+        },
+      },
+    };
+    await engine(ai, { models: ["gemini-3.8-flash-tts"] }).synthesize("Merhaba", "rex");
+    await engine(ai, { models: ["gemini-2.5-flash-tts"] }).synthesize("Merhaba", "rex");
+    assert.equal(seen[0].role, "user");
+    assert.equal(seen[0].text, "Merhaba", "a 3.x speech model would read an instruction aloud");
+    assert.match(seen[1].text ?? "", /^Say in an? .* way: Merhaba$/);
+  });
+
   it("describes errors on one line and recognises rate limits", () => {
     assert.equal(describeError(new Error("boom")), "boom");
     assert.match(describeError({ message: "x", statusCode: 429, body: "quota" }), /status 429 · quota/);

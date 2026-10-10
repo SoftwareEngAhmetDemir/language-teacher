@@ -39,7 +39,7 @@ On [Render](https://render.com): New → Blueprint → pick this repo. Set `GEMI
 
 ## Choosing a region
 
-With a plain `GEMINI_API_KEY` the requests go to one global endpoint. Vertex AI lets you use a nearby region, which measured about twice as fast to answer from Turkey (Milan, 72 ms against 156 ms). See [docs/regions.md](docs/regions.md), and measure your own connection with `npm run probe:regions`.
+With a plain `GEMINI_API_KEY` the requests go to one global endpoint with no region choice. Vertex AI lets you choose a location. From Turkey the nearest regions (Milan, Frankfurt, the Netherlands) only serve the older Gemini 2.5 models, so the app uses the `global` location, where the 3.x models, Live and speech are available. See [docs/regions.md](docs/regions.md), and run `npm run probe:regions` to check your own connection and project.
 
 ## Configuration
 
