@@ -1,0 +1,12 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: language-teacher
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/config
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false # you enter this in the Render dashboard; it is never stored in git
+      - key: ACCESS_CODE
+        sync: false # password for the app, so strangers can't spend your Gemini quota

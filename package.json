@@ -1,0 +1,27 @@
+{
+  "name": "language-teacher",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch --import tsx src/server.ts",
+    "start": "node --env-file-if-exists=.env --import tsx src/server.ts",
+    "build": "npm --prefix web ci && npm --prefix web run build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@google/genai": "^2.28.0",
+    "express": "^5.3.0",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}
