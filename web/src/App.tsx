@@ -5,6 +5,7 @@ import { splitSentences } from "./lib/speech";
 import { useRecognizer } from "./hooks/useRecognizer";
 import { useSpeaker } from "./hooks/useSpeaker";
 import { useVoiceConversation } from "./hooks/useVoiceConversation";
+import { CHARACTERS, DEFAULT_CHARACTER } from "./avatar/characters";
 
 const LEVEL_NAMES: Record<string, string> = {
   A1: "A1 · Beginner",
@@ -17,8 +18,8 @@ const LEVEL_NAMES: Record<string, string> = {
 };
 
 // three.js and the 3D model are only downloaded when the teacher is shown.
-const AnimeTeacher = lazy(() => import("./avatar/Avatar"));
-const ProfessorTeacher = lazy(() => import("./avatar/ProfessorAvatar"));
+const VrmTeacher = lazy(() => import("./avatar/Avatar"));
+const CartoonTeacher = lazy(() => import("./avatar/CartoonAvatar"));
 
 const START_LESSON = "Hello! Please start our lesson.";
 
@@ -47,7 +48,7 @@ export default function App() {
   const [speakReplies, setSpeakReplies] = useState(true);
   // Microphone switch: once on it stays on, re-listening automatically after every turn.
   const [micOn, setMicOn] = useState(false);
-  const [character, setCharacter] = useState(() => (loadPref("character", "professor") === "anime" ? "anime" : "professor"));
+  const [characterId, setCharacterId] = useState(() => loadPref("character", DEFAULT_CHARACTER));
   const [showTeacher, setShowTeacher] = useState(() => loadPref("showTeacher", "on") === "on");
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [unlocked, setUnlocked] = useState(() => getCode() !== "");
@@ -83,7 +84,12 @@ export default function App() {
   const speaker = useSpeaker(speechTag);
   const voice = useVoiceConversation();
   const voiceMode = engine === "voice";
-  const Teacher = character === "anime" ? AnimeTeacher : ProfessorTeacher;
+  const teacherState = {
+    analyser: voiceMode ? voice.analyser : null,
+    speaking: voiceMode ? voice.teacherSpeaking : speaker.speaking,
+    attentive: voiceMode && voice.status === "live" && !voice.teacherSpeaking,
+  };
+  const character = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0];
   const recognizer = useRecognizer({
     lang: speechTag,
     onInterim: setInterim,
@@ -250,13 +256,14 @@ export default function App() {
 
       {showTeacher && (
         <Suspense fallback={<div className="avatar" />}>
-          <Teacher
-            analyser={voiceMode ? voice.analyser : null}
-            speaking={voiceMode ? voice.teacherSpeaking : speaker.speaking}
-            attentive={voiceMode && voice.status === "live" && !voice.teacherSpeaking}
-          />
+          {character.kind === "vrm" ? (
+            <VrmTeacher modelUrl={character.url} {...teacherState} />
+          ) : (
+            <CartoonTeacher look={character.look} {...teacherState} />
+          )}
         </Suspense>
       )}
+      {showTeacher && character.credit && <p className="credit">{character.credit}</p>}
 
       <section className="settings">
         <label>
@@ -290,15 +297,18 @@ export default function App() {
         <label>
           Teacher
           <select
-            value={character}
+            value={character.id}
             disabled={!showTeacher}
             onChange={(e) => {
-              setCharacter(e.target.value as "professor" | "anime");
+              setCharacterId(e.target.value);
               savePref("character", e.target.value);
             }}
           >
-            <option value="professor">Professor Whiskers</option>
-            <option value="anime">Anime teacher</option>
+            {CHARACTERS.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </select>
         </label>
         <label className="check">

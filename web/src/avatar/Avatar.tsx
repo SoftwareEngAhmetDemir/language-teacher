@@ -4,9 +4,9 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
 import { MouthDriver } from "./lipSync";
 
-const MODEL_URL = "/models/teacher.vrm";
-
 interface Props {
+  /** URL of the .vrm model file. */
+  modelUrl: string;
   /** Tap on the teacher's audio; the mouth follows what is really being said. */
   analyser: AnalyserNode | null;
   /** The teacher is talking. Used to animate the mouth when there is no audio to analyse. */
@@ -18,7 +18,7 @@ interface Props {
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 
 /** A 3D teacher (VRM model on three.js) with lip sync, blinking, breathing, eye contact and head movement. */
-export default function Avatar({ analyser, speaking, attentive }: Props) {
+export default function Avatar({ modelUrl, analyser, speaking, attentive }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const latest = useRef({ analyser, speaking, attentive });
   const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
@@ -28,6 +28,7 @@ export default function Avatar({ analyser, speaking, attentive }: Props) {
   });
 
   useEffect(() => {
+    setStatus("loading");
     const canvas = canvasRef.current!;
     let renderer: THREE.WebGLRenderer;
     try {
@@ -66,7 +67,7 @@ export default function Avatar({ analyser, speaking, attentive }: Props) {
 
     new GLTFLoader()
       .register((parser) => new VRMLoaderPlugin(parser))
-      .loadAsync(MODEL_URL)
+      .loadAsync(modelUrl)
       .then((gltf) => {
         if (disposed) return;
         const model = gltf.userData.vrm as VRM;
@@ -189,7 +190,7 @@ export default function Avatar({ analyser, speaking, attentive }: Props) {
       }
       renderer.dispose();
     };
-  }, []);
+  }, [modelUrl]);
 
   return (
     <div className="avatar">

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import type { Look } from "./characters";
 import { MouthDriver } from "./lipSync";
 
 interface Props {
+  look: Look;
   /** Tap on the teacher's audio; the mouth follows what is really being said. */
   analyser: AnalyserNode | null;
   /** The teacher is talking. Used to animate the mouth when there is no audio to analyse. */
@@ -23,10 +25,10 @@ function toonGradient(): THREE.DataTexture {
 }
 
 /**
- * "Professor Whiskers": an original cartoon teacher built from simple shapes, with a big nose,
- * a handlebar moustache, glasses and a graduation cap. The mouth opens and rounds with the voice.
+ * An original cartoon teacher built from simple shapes and styled by `look` (colours, nose, hair,
+ * moustache or beard, glasses, hat). The mouth opens and rounds with the voice.
  */
-export default function ProfessorAvatar({ analyser, speaking, attentive }: Props) {
+export default function CartoonAvatar({ look, analyser, speaking, attentive }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const latest = useRef({ analyser, speaking, attentive });
   const [failed, setFailed] = useState(false);
@@ -81,9 +83,9 @@ export default function ProfessorAvatar({ analyser, speaking, attentive }: Props
     };
     const flat = (geometry: THREE.BufferGeometry) => (owned.push(geometry), geometry);
 
-    const SKIN = 0xf3b284;
-    const NOSE = 0xe58f73;
-    const HAIR = 0x3a2415;
+    const SKIN = look.skin;
+    const NOSE = look.nose;
+    const HAIR = look.hair;
 
     const root = new THREE.Group();
     scene.add(root);
@@ -91,23 +93,35 @@ export default function ProfessorAvatar({ analyser, speaking, attentive }: Props
     // Body: green cardigan, white collar and a red bow tie.
     const body = new THREE.Group();
     root.add(body);
-    part(body, ball, 0x2f9e78).scale.set(0.95, 0.72, 0.55);
+    part(body, ball, look.body).scale.set(0.95, 0.72, 0.55);
     body.children[0].position.set(0, -1.35, 0);
     // Neck.
     part(body, flat(new THREE.CylinderGeometry(0.21, 0.24, 0.34, 20)), SKIN).position.set(0, -0.58, 0);
-    const collar = part(body, flat(new THREE.TorusGeometry(0.3, 0.08, 12, 32)), 0xffffff);
-    collar.position.set(0, -0.7, 0.04);
-    collar.rotation.x = Math.PI / 2;
-    collar.scale.set(1, 1, 0.8);
-    const tie = new THREE.Group();
-    tie.position.set(0, -0.8, 0.4);
-    body.add(tie);
-    for (const side of [-1, 1]) {
-      const wing = part(tie, flat(new THREE.ConeGeometry(0.13, 0.26, 4)), 0xd62839);
-      wing.rotation.z = (-side * Math.PI) / 2;
-      wing.position.x = side * 0.14;
+    if (look.collar) {
+      const collar = part(body, flat(new THREE.TorusGeometry(0.3, 0.08, 12, 32)), 0xffffff);
+      collar.position.set(0, -0.7, 0.04);
+      collar.rotation.x = Math.PI / 2;
+      collar.scale.set(1, 1, 0.8);
     }
-    part(tie, ball, 0xb71c2c).scale.setScalar(0.07);
+    if (look.bowTie !== undefined) {
+      const tie = new THREE.Group();
+      tie.position.set(0, -0.8, 0.4);
+      body.add(tie);
+      for (const side of [-1, 1]) {
+        const wing = part(tie, flat(new THREE.ConeGeometry(0.13, 0.26, 4)), look.bowTie);
+        wing.rotation.z = (-side * Math.PI) / 2;
+        wing.position.x = side * 0.14;
+      }
+      part(tie, ball, look.bowTie).scale.setScalar(0.07);
+    }
+    if (look.whistle) {
+      const whistle = new THREE.Group();
+      whistle.position.set(0.12, -0.98, 0.5);
+      body.add(whistle);
+      part(whistle, flat(new THREE.CylinderGeometry(0.04, 0.04, 0.14, 12)), 0xf2c230, { outline: 1.15 }).rotation.z = Math.PI / 2;
+      part(whistle, ball, 0xf2c230, { outline: 1.15 }).scale.setScalar(0.055);
+      whistle.children[1].position.x = -0.08;
+    }
 
     // Neck pivot: the head turns and nods around here rather than around its own centre.
     const neck = new THREE.Group();
@@ -125,8 +139,8 @@ export default function ProfessorAvatar({ analyser, speaking, attentive }: Props
 
     // Big round nose.
     const nose = part(head, ball, NOSE);
-    nose.scale.set(0.17, 0.15, 0.15);
-    nose.position.set(0, -0.06, 0.5);
+    nose.scale.set(0.17 * look.noseSize, 0.15 * look.noseSize, 0.15 * look.noseSize);
+    nose.position.set(0, -0.06, 0.48 + 0.02 * look.noseSize);
 
     // Eyes with pupils that can look around, and eyebrows.
     const eyes: THREE.Group[] = [];
@@ -144,24 +158,27 @@ export default function ProfessorAvatar({ analyser, speaking, attentive }: Props
       eyes.push(eye);
       pupils.push(pupil);
 
-      // Round glasses.
-      const frame = part(head, flat(new THREE.TorusGeometry(0.13, 0.017, 10, 36)), 0x2a2a2a, { outline: 0 });
-      frame.position.set(side * 0.2, 0.14, 0.5);
+      if (look.glasses !== undefined) {
+        const frame = part(head, flat(new THREE.TorusGeometry(0.13, 0.017, 10, 36)), look.glasses, { outline: 0 });
+        frame.position.set(side * 0.2, 0.14, 0.5);
+      }
 
       const brow = part(head, browGeometry, HAIR, { outline: 0 });
       brow.rotation.z = Math.PI / 2 + side * 0.18;
       brow.position.set(side * 0.2, 0.34, 0.47);
       brows.push(brow);
     }
-    const bridge = part(head, flat(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6)), 0x2a2a2a, { outline: 0 });
-    bridge.rotation.z = Math.PI / 2;
-    bridge.position.set(0, 0.16, 0.5);
+    if (look.glasses !== undefined) {
+      const bridge = part(head, flat(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6)), look.glasses, { outline: 0 });
+      bridge.rotation.z = Math.PI / 2;
+      bridge.position.set(0, 0.16, 0.5);
+    }
 
     // Handlebar moustache.
     const moustache = new THREE.Group();
     moustache.position.set(0, -0.19, 0.47);
     head.add(moustache);
-    for (const side of [-1, 1]) {
+    for (const side of look.moustache ? [-1, 1] : []) {
       const half = part(moustache, ball, HAIR);
       half.scale.set(0.2, 0.075, 0.08);
       half.position.x = side * 0.15;
@@ -182,26 +199,69 @@ export default function ProfessorAvatar({ analyser, speaking, attentive }: Props
     smile.rotation.z = Math.PI;
     smile.position.set(0, 0.05, 0.06);
 
-    // Graduation cap with a gold tassel.
-    const cap = new THREE.Group();
-    cap.position.set(0, 0.42, 0);
-    cap.rotation.x = -0.12;
-    head.add(cap);
-    part(cap, flat(new THREE.CylinderGeometry(0.42, 0.46, 0.26, 28)), 0x1f2a5a).position.y = 0.06;
-    const board = part(cap, flat(new THREE.BoxGeometry(1.2, 0.07, 1.2)), 0x161f45);
-    board.position.y = 0.22;
-    board.rotation.y = Math.PI / 4;
-    const button = part(cap, ball, 0xf2c230, { outline: 0 });
-    button.scale.setScalar(0.05);
-    button.position.y = 0.27;
+    // Hat.
     const tassel = new THREE.Group();
-    tassel.position.set(0.42, 0.23, 0.42);
-    cap.add(tassel);
-    part(tassel, flat(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 6)), 0xf2c230, { outline: 0 }).position.y = -0.15;
-    part(tassel, flat(new THREE.CylinderGeometry(0.035, 0.06, 0.14, 10)), 0xf2c230, { outline: 0 }).position.y = -0.36;
+    const hat = look.hat;
+    if (hat?.kind === "mortarboard") {
+      const cap = new THREE.Group();
+      cap.position.set(0, 0.42, 0);
+      cap.rotation.x = -0.12;
+      head.add(cap);
+      part(cap, flat(new THREE.CylinderGeometry(0.42, 0.46, 0.26, 28)), hat.color).position.y = 0.06;
+      const board = part(cap, flat(new THREE.BoxGeometry(1.2, 0.07, 1.2)), hat.color);
+      board.position.y = 0.22;
+      board.rotation.y = Math.PI / 4;
+      const button = part(cap, ball, 0xf2c230, { outline: 0 });
+      button.scale.setScalar(0.05);
+      button.position.y = 0.27;
+      tassel.position.set(0.42, 0.23, 0.42);
+      cap.add(tassel);
+      part(tassel, flat(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 6)), 0xf2c230, { outline: 0 }).position.y = -0.15;
+      part(tassel, flat(new THREE.CylinderGeometry(0.035, 0.06, 0.14, 10)), 0xf2c230, { outline: 0 }).position.y = -0.36;
+    } else if (hat?.kind === "cap") {
+      const dome = part(head, flat(new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2)), hat.color);
+      dome.scale.set(0.6, 0.4, 0.58);
+      dome.position.set(0, 0.27, 0);
+      dome.rotation.x = -0.1;
+      const brim = part(head, ball, hat.color);
+      brim.scale.set(0.42, 0.04, 0.36);
+      brim.position.set(0, 0.27, 0.52);
+      brim.rotation.x = 0.12;
+    }
+
+    // Hair: a cap of hair over the top and back of the head, plus a fringe and optionally a bun.
+    if (look.hairStyle !== "none") {
+      const hair = part(head, ball, HAIR);
+      hair.scale.set(0.6, 0.57, 0.55);
+      hair.position.set(0, 0.07, -0.07);
+      const fringe = part(head, ball, HAIR, { outline: 0 });
+      fringe.scale.set(0.5, 0.16, 0.2);
+      fringe.position.set(0, 0.42, 0.3);
+      fringe.rotation.x = 0.5;
+      if (look.hairStyle === "bun") {
+        part(head, ball, HAIR).scale.setScalar(0.22);
+        head.children[head.children.length - 1].position.set(0, 0.66, -0.12);
+      }
+    }
+
+    // Beard around the chin, behind the mouth so the lips stay visible.
+    if (look.beard) {
+      const beard = part(head, ball, HAIR, { outline: 0 });
+      beard.scale.set(0.46, 0.3, 0.34);
+      beard.position.set(0, -0.37, 0.1);
+    }
+
+    if (look.blush) {
+      for (const side of [-1, 1]) {
+        const blush = part(head, ball, 0xf08a8a, { outline: 0 });
+        blush.scale.set(0.075, 0.045, 0.02);
+        blush.position.set(side * 0.3, -0.08, 0.43);
+        blush.rotation.y = side * 0.5;
+      }
+    }
 
     // Sideburns peeking out under the cap.
-    for (const side of [-1, 1]) {
+    for (const side of look.hairStyle === "none" && !look.beard ? [-1, 1] : []) {
       const burn = part(head, ball, HAIR, { outline: 0 });
       burn.scale.set(0.06, 0.16, 0.1);
       burn.position.set(side * 0.5, 0.2, 0.12);
@@ -311,7 +371,7 @@ export default function ProfessorAvatar({ analyser, speaking, attentive }: Props
       owned.forEach((o) => o.dispose());
       renderer.dispose();
     };
-  }, []);
+  }, [look]);
 
   return (
     <div className="avatar">
