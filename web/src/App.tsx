@@ -17,7 +17,8 @@ const LEVEL_NAMES: Record<string, string> = {
 };
 
 // three.js and the 3D model are only downloaded when the teacher is shown.
-const Avatar = lazy(() => import("./avatar/Avatar"));
+const AnimeTeacher = lazy(() => import("./avatar/Avatar"));
+const ProfessorTeacher = lazy(() => import("./avatar/ProfessorAvatar"));
 
 const START_LESSON = "Hello! Please start our lesson.";
 
@@ -46,6 +47,7 @@ export default function App() {
   const [speakReplies, setSpeakReplies] = useState(true);
   // Microphone switch: once on it stays on, re-listening automatically after every turn.
   const [micOn, setMicOn] = useState(false);
+  const [character, setCharacter] = useState(() => (loadPref("character", "professor") === "anime" ? "anime" : "professor"));
   const [showTeacher, setShowTeacher] = useState(() => loadPref("showTeacher", "on") === "on");
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [unlocked, setUnlocked] = useState(() => getCode() !== "");
@@ -81,6 +83,7 @@ export default function App() {
   const speaker = useSpeaker(speechTag);
   const voice = useVoiceConversation();
   const voiceMode = engine === "voice";
+  const Teacher = character === "anime" ? AnimeTeacher : ProfessorTeacher;
   const recognizer = useRecognizer({
     lang: speechTag,
     onInterim: setInterim,
@@ -247,7 +250,7 @@ export default function App() {
 
       {showTeacher && (
         <Suspense fallback={<div className="avatar" />}>
-          <Avatar
+          <Teacher
             analyser={voiceMode ? voice.analyser : null}
             speaking={voiceMode ? voice.teacherSpeaking : speaker.speaking}
             attentive={voiceMode && voice.status === "live" && !voice.teacherSpeaking}
@@ -282,6 +285,20 @@ export default function App() {
           >
             <option value="voice">Natural voice conversation</option>
             <option value="text">Text chat with browser voice</option>
+          </select>
+        </label>
+        <label>
+          Teacher
+          <select
+            value={character}
+            disabled={!showTeacher}
+            onChange={(e) => {
+              setCharacter(e.target.value as "professor" | "anime");
+              savePref("character", e.target.value);
+            }}
+          >
+            <option value="professor">Professor Whiskers</option>
+            <option value="anime">Anime teacher</option>
           </select>
         </label>
         <label className="check">

@@ -200,3 +200,23 @@ export class SyntheticSpeech {
     approach(this.visemes, target, dt);
   }
 }
+
+/** Picks the mouth source for a character: the real audio when there is any, otherwise a stand-in. */
+export class MouthDriver {
+  private source: AnalyserNode | null = null;
+  private audio: AudioLipSync | null = null;
+  private synthetic = new SyntheticSpeech();
+
+  update(dt: number, analyser: AnalyserNode | null, speaking: boolean): { visemes: Visemes; level: number } {
+    if (analyser !== this.source) {
+      this.source = analyser;
+      this.audio = analyser ? new AudioLipSync(analyser) : null;
+    }
+    if (this.audio) {
+      this.audio.update(dt);
+      return { visemes: this.audio.visemes, level: this.audio.level };
+    }
+    this.synthetic.update(dt, speaking);
+    return { visemes: this.synthetic.visemes, level: this.synthetic.level };
+  }
+}

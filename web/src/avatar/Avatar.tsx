@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
-import { AudioLipSync, SyntheticSpeech, type Visemes } from "./lipSync";
+import { MouthDriver } from "./lipSync";
 
 const MODEL_URL = "/models/teacher.vrm";
 
@@ -98,8 +98,7 @@ export default function Avatar({ analyser, speaking, attentive }: Props) {
         if (!disposed) setStatus("failed");
       });
 
-    const audioSync: { source: AnalyserNode | null; sync: AudioLipSync | null } = { source: null, sync: null };
-    const synthetic = new SyntheticSpeech();
+    const mouth = new MouthDriver();
     let last = performance.now();
     let t = 0;
     let nextBlink = rand(1.5, 4);
@@ -124,21 +123,7 @@ export default function Avatar({ analyser, speaking, attentive }: Props) {
       const expressions = vrm.expressionManager!;
 
       // Mouth: from the real audio when we have it, otherwise a syllable-paced stand-in.
-      if (state.analyser !== audioSync.source) {
-        audioSync.source = state.analyser;
-        audioSync.sync = state.analyser ? new AudioLipSync(state.analyser) : null;
-      }
-      let visemes: Visemes;
-      let level: number;
-      if (audioSync.sync) {
-        audioSync.sync.update(dt);
-        visemes = audioSync.sync.visemes;
-        level = audioSync.sync.level;
-      } else {
-        synthetic.update(dt, state.speaking);
-        visemes = synthetic.visemes;
-        level = synthetic.level;
-      }
+      const { visemes, level } = mouth.update(dt, state.analyser, state.speaking);
       expressions.setValue("aa", visemes.aa);
       expressions.setValue("ih", visemes.ih);
       expressions.setValue("ou", visemes.ou);

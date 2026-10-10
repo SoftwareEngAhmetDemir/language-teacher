@@ -29,8 +29,9 @@ On [Render](https://render.com): New → Blueprint → pick this repo. Set `GEMI
 
 See [.env.example](.env.example) for all options (models, thinking level, voice, Vertex AI region, call limit).
 
-## The 3D teacher
+## The 3D teachers
 
-The teacher is a [VRM](https://vrm.dev) character rendered with [three.js](https://threejs.org) and [@pixiv/three-vrm](https://github.com/pixiv/three-vrm) (all MIT). Her mouth follows the audio being played: each frame the app measures the voice's formants (linear prediction) to pick the vowel shape, and its loudness to set how far the jaw opens. She also blinks, breathes, keeps eye contact and nods with the voice. In text mode, where the browser's voice can't be analysed, the mouth uses a syllable-paced animation instead.
+Pick a teacher in the settings. Both are rendered with [three.js](https://threejs.org) (MIT) and move their mouths with the audio being played: each frame the app measures the voice's formants (linear prediction) to pick the vowel shape, and its loudness to set how far the mouth opens. They also blink, breathe, keep eye contact and nod with the voice. In text mode, where the browser's voice can't be analysed, the mouth uses a syllable-paced animation instead.
 
-The model is `web/public/models/teacher.vrm`, the sample avatar from the three-vrm repository by pixiv Inc. (VRM license: redistribution and modification allowed, no credit required). To use another character, replace that file with any VRM 0.x or 1.0 model that has the `aa`, `ih`, `ou`, `ee` and `oh` expressions, and check its license first.
+- **Professor Whiskers** is an original cartoon character built from simple shapes in code (`web/src/avatar/ProfessorAvatar.tsx`), so it needs no model files.
+- **Anime teacher** is a [VRM](https://vrm.dev) model rendered with [@pixiv/three-vrm](https://github.com/pixiv/three-vrm) (MIT). The model is `web/public/models/teacher.vrm`, the sample avatar from the three-vrm repository by pixiv Inc. (VRM license: redistribution and modification allowed, no credit required). To use another character, replace that file with any VRM 0.x or 1.0 model that has the `aa`, `ih`, `ou`, `ee` and `oh` expressions, and check its license first.
