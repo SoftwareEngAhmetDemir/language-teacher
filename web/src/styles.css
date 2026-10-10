@@ -51,3 +51,7 @@ form input { flex: 1; min-width: 0; }
 .avatar-note { position: absolute; inset: 0; display: grid; place-items: center; font-size: 0.85rem; opacity: 0.7; text-align: center; padding: 1rem; }
 @media (max-width: 600px) { .avatar { height: 240px; } }
 .credit { margin: -0.5rem 0 0; font-size: 0.75rem; opacity: 0.6; }
+.toolbar { display: flex; justify-content: flex-end; }
+.toggle { font-size: 0.85rem; padding: 0.35rem 0.8rem; border-radius: 2rem; border: 1px solid var(--muted); background: var(--muted); color: inherit; }
+.toggle[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.log.collapsed { min-height: 0; flex: 0 0 auto; }

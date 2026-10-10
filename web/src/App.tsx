@@ -49,6 +49,11 @@ export default function App() {
   // Microphone switch: once on it stays on, re-listening automatically after every turn.
   const [micOn, setMicOn] = useState(false);
   const [characterId, setCharacterId] = useState(() => loadPref("character", DEFAULT_CHARACTER));
+  // null until the user chooses; then the transcript is hidden in voice calls, where you mostly listen, and shown in text chat.
+  const [transcriptPref, setTranscriptPref] = useState<"on" | "off" | null>(() => {
+    const saved = loadPref("transcript", "");
+    return saved === "on" || saved === "off" ? saved : null;
+  });
   const [showTeacher, setShowTeacher] = useState(() => loadPref("showTeacher", "on") === "on");
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [unlocked, setUnlocked] = useState(() => getCode() !== "");
@@ -208,6 +213,9 @@ export default function App() {
   }
 
   const shown = voiceMode ? voice.messages : messages;
+  const showTranscript = transcriptPref ? transcriptPref === "on" : !voiceMode;
+  // Errors stay visible even when the transcript is hidden.
+  const visible = showTranscript ? shown : shown.filter((m) => m.error);
 
   if (loadError) {
     return (
@@ -369,7 +377,23 @@ export default function App() {
       {notice && !voiceMode && <p className="notice error">{notice}</p>}
       {voiceMode && voice.error && <p className="notice error">{voice.error}</p>}
 
-      <div className="log">
+      <div className="toolbar">
+        <button
+          type="button"
+          className="toggle"
+          aria-pressed={showTranscript}
+          onClick={() => {
+            const next = showTranscript ? "off" : "on";
+            setTranscriptPref(next);
+            savePref("transcript", next);
+          }}
+        >
+          💬 {showTranscript ? "Hide transcript" : "Show transcript"}
+          {!showTranscript && shown.length > 0 ? ` (${shown.length})` : ""}
+        </button>
+      </div>
+
+      <div className={`log${showTranscript ? "" : " collapsed"}`}>
         {shown.length === 0 && (
           <div className="empty">
             {voiceMode ? (
@@ -388,7 +412,7 @@ export default function App() {
             )}
           </div>
         )}
-        {shown.map((m) => (
+        {visible.map((m) => (
           <div key={m.id} className={`msg ${m.role}${m.error ? " error" : ""}${m.open ? " open" : ""}`}>
             {m.text || "…"}
             {m.interrupted && <span className="cut"> —</span>}
@@ -402,7 +426,7 @@ export default function App() {
             )}
           </div>
         ))}
-        {!voiceMode && interim && <div className="msg user interim">🎤 {interim}</div>}
+        {showTranscript && !voiceMode && interim && <div className="msg user interim">🎤 {interim}</div>}
         {!voiceMode && micOn && !interim && (
           <div className="mic-status">{listening ? "🎤 Listening…" : "Microphone on · paused while the teacher talks"}</div>
         )}
