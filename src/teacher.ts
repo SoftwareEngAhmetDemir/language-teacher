@@ -1,4 +1,4 @@
-import { CHARACTER_VOICES, DEFAULT_CHARACTER } from "./characters.js";
+import { CHARACTER_PROFILES, DEFAULT_CHARACTER, isCharacterId } from "./characters.js";
 
 /** Languages the teacher supports. `speechTag` is the BCP-47 tag the browser uses for voice. */
 export const LANGUAGES = [
@@ -37,22 +37,36 @@ export interface Profile {
   level: Level;
   /** Which teacher character is talking; decides the personality and, in voice calls, the voice. */
   character: string;
+  /** What to call the student, if they gave a name. */
+  studentName?: string;
   /** Changes whenever the teacher prompt would change. */
   key: string;
 }
 
 /** Validates client input against the allowlists, so nothing user-controlled reaches the prompt. */
-export function parseProfile(language: unknown, level: unknown, character?: unknown): Profile | null {
+/**
+ * Cleans a name typed by the student before it goes into a prompt: letters, marks, spaces, hyphens,
+ * apostrophes and full stops only, at most three words and 30 characters. Returns undefined when nothing is left.
+ */
+export function parseStudentName(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const cleaned = value.replace(/[^\p{L}\p{M} '’.-]/gu, " ").replace(/\s+/g, " ").trim();
+  const name = cleaned.split(" ").slice(0, 3).join(" ").slice(0, 30).trim();
+  return name || undefined;
+}
+
+export function parseProfile(language: unknown, level: unknown, character?: unknown, studentName?: unknown): Profile | null {
   if (typeof language !== "string" || typeof level !== "string") return null;
   const lang = LANGUAGES.find((l) => l.name.toLowerCase() === language.trim().toLowerCase());
   const lvl = LEVELS.find((l) => l === level.trim().toUpperCase());
   if (!lang || !lvl) return null;
-  const who = typeof character === "string" && Object.hasOwn(CHARACTER_VOICES, character) ? character : DEFAULT_CHARACTER;
-  return { language: lang.name, level: lvl, character: who, key: `${lang.name}|${lvl}|${who}` };
+  const who = isCharacterId(character) ? character : DEFAULT_CHARACTER;
+  const name = parseStudentName(studentName);
+  return { language: lang.name, level: lvl, character: who, studentName: name, key: `${lang.name}|${lvl}|${who}|${name ?? ""}` };
 }
 
-export function buildSystemInstruction({ language, level, character }: Profile): string {
-  const persona = CHARACTER_VOICES[character]?.persona ?? "";
+/** The level limits the teacher must respect; shared by the one-to-one teacher and the group speakers. */
+export function levelRules({ language, level }: Pick<Profile, "language" | "level">): string {
   // C2+ has no ceiling, so the strict-limit rules only apply to the levels below it.
   const strictLimit =
     level === "C2+"
@@ -60,20 +74,26 @@ export function buildSystemInstruction({ language, level, character }: Profile):
       : `
 STRICT LEVEL LIMIT (the most important rule):
 - ${level} is a hard ceiling. Never use a single word, tense, grammar structure or idiom above ${level}, not even once, not for emphasis, and not when explaining something.
-- Stay at ${level} even if the student speaks or writes at a higher level, does very well, asks you to use harder language, or asks you to "speak normally" or "like a native". In that case politely say, in simple ${level} ${language}, that you keep to their level, then continue the lesson. The student can change the level in the app.
+- Stay at ${level} even if the student speaks or writes at a higher level, does very well, asks you to use harder language, or asks you to "speak normally" or "like a native". In that case politely say, in simple ${level} ${language}, that you keep to their level, then continue. The student can change the level in the app.
 - If you are not sure a word or structure is within ${level}, use a simpler one instead.
 - If an idea needs words above ${level}, rephrase it with simpler words or a short example. The only exception is a word the student explicitly asks about: you may say that one word, then explain it using only ${level} words.
 - Corrections and explanations must also stay within ${level}.
 - Before every reply, silently check each word and sentence against these limits and simplify anything above them.
 `;
+  return `Limits for ${level}: ${LEVEL_GUIDE[level]}\n${strictLimit}`;
+}
 
+export function buildSystemInstruction({ language, level, character, studentName }: Profile): string {
+  const persona = CHARACTER_PROFILES[character]?.persona ?? "";
+  const nameLine = studentName
+    ? `\nThe student's name is ${studentName}. Call them by name now and then, naturally, for example when you greet them, encourage them or ask them something, but not in every sentence.\n`
+    : "";
   return `You are a friendly, patient ${language} teacher having a spoken conversation with a student. The student's level is ${level} on the CEFR scale.
 
 Your personality: ${persona}
 Personality only changes your tone and manner. It never overrides the language, the level limits or the rules below.
-
-Limits for ${level}: ${LEVEL_GUIDE[level]}
-${strictLimit}
+${nameLine}
+${levelRules({ language, level })}
 How to teach:
 - Speak to the student in ${language}, matching the ${level} level above in vocabulary, grammar and sentence length. Never go above that level.
 - This is a natural, flowing voice conversation and your replies are spoken aloud. Use plain spoken sentences only: no markdown, bullet points, lists, headings, emojis or special symbols. Keep each reply to 1 to 3 short sentences unless the student asks for more. Pronounce words clearly, with a native accent, at a pace the student can follow.

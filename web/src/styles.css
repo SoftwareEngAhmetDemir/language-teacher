@@ -100,3 +100,48 @@ form input { flex: 1; min-width: 0; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .translation, .translation-text, .skeleton span { animation: none; } }
+
+/* Group conversation */
+.group-setup { display: flex; flex-direction: column; gap: 0.9rem; padding: 0.9rem 1rem; border-radius: 1rem; background: var(--muted); }
+.group-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.4rem; }
+.member { font: inherit; padding: 0.4rem 0.95rem; border-radius: 2rem; cursor: pointer; color: inherit; background: transparent; border: 2px solid color-mix(in srgb, currentColor 22%, transparent); transition: background 0.15s, border-color 0.15s, color 0.15s; }
+.member.selected { background: var(--member); border-color: var(--member); color: #fff; }
+.member:disabled:not(.selected) { opacity: 0.45; }
+.group-scene-options { display: flex; flex-wrap: wrap; gap: 0.7rem 1rem; align-items: flex-end; }
+.group-scene-options label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; }
+.group-scene-options label.grow { flex: 1; min-width: 12rem; }
+.group-scene-options label.check { flex-direction: row; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
+.group-scene-options label.check input { padding: 0; }
+button.primary { background: var(--accent); color: #fff; border: 0; border-radius: 2rem; padding: 0.6rem 1.3rem; font-weight: 600; }
+.group-scene { height: 440px; }
+.group-status { margin: 0; font-size: 0.85rem; opacity: 0.75; }
+.caption { margin: 0; padding: 0.6rem 0.9rem; border-radius: 0.8rem; background: var(--muted); line-height: 1.5; }
+.speaker-name { font-size: 0.75rem; font-weight: 700; margin: 0 0 0.15rem 0.4rem; }
+.entry.assistant .msg { border-radius: 0.3rem 0.8rem 0.8rem 0.8rem; }
+@media (max-width: 600px) { .group-scene { height: 300px; } }
+
+/* Group scene: name labels over the 3D table, and a soft vignette. */
+.group-scene::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.28) 100%); }
+.seat-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+.seat-label {
+  position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 0.4rem; padding: 0.28rem 0.75rem 0.28rem 0.55rem;
+  border-radius: 2rem; background: rgba(255, 255, 255, 0.92); color: #1b1b1b; font: 600 0.8rem system-ui, sans-serif; white-space: nowrap;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.28); backdrop-filter: blur(6px); will-change: transform; transition: background 0.2s, color 0.2s; transform: translate(-9999px, 0);
+}
+.seat-label::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 0 0 3px 0; }
+.seat-label .dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--seat); }
+.seat-label .state { display: none; gap: 2px; align-items: center; height: 0.8rem; }
+.seat-label .state i { display: block; width: 3px; height: 100%; border-radius: 2px; background: currentColor; transform-origin: center; }
+.seat-label[data-state="speaking"] { background: var(--seat); color: #fff; }
+.seat-label[data-state="speaking"] .dot { background: #fff; }
+.seat-label[data-state="speaking"] .state, .seat-label[data-state="thinking"] .state { display: inline-flex; }
+.seat-label[data-state="speaking"] .state i { animation: equalizer 0.8s ease-in-out infinite; }
+.seat-label[data-state="speaking"] .state i:nth-child(2) { animation-delay: 0.2s; }
+.seat-label[data-state="speaking"] .state i:nth-child(3) { animation-delay: 0.4s; }
+.seat-label[data-state="thinking"] .state i { width: 4px; height: 4px; border-radius: 50%; animation: bounce 1s ease-in-out infinite; }
+.seat-label[data-state="thinking"] .state i:nth-child(2) { animation-delay: 0.15s; }
+.seat-label[data-state="thinking"] .state i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes equalizer { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+@keyframes bounce { 0%, 100% { transform: translateY(0); opacity: 0.5; } 50% { transform: translateY(-3px); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .seat-label .state i { animation: none !important; } }

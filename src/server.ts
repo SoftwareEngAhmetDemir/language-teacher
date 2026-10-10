@@ -3,6 +3,10 @@ import { existsSync } from "node:fs";
 import type { IncomingMessage } from "node:http";
 import { fileURLToPath } from "node:url";
 import { codeOk, requiresCode } from "./access.js";
+import { CHARACTER_PROFILES } from "./characters.js";
+import { SCENES } from "./group/scenes.js";
+import { registerGroupRoutes } from "./group/routes.js";
+import { MAX_PARTICIPANTS, MIN_PARTICIPANTS } from "./group/validate.js";
 import { LANGUAGES, LEVELS, parseProfile } from "./teacher.js";
 import { textSend } from "./text.js";
 import { translate } from "./translate.js";
@@ -17,10 +21,22 @@ if (existsSync(webDist)) app.use(express.static(webDist));
 
 const isSessionId = (v: unknown): v is string => typeof v === "string" && /^[\w-]{8,64}$/.test(v);
 
-/** Languages and levels the UI can offer, and whether it must ask for an access code. */
+/** Languages, levels and group-chat options the UI can offer, and whether it must ask for an access code. */
 app.get("/api/config", (_req, res) => {
-  res.json({ languages: LANGUAGES, levels: LEVELS, requiresCode });
+  res.json({
+    languages: LANGUAGES,
+    levels: LEVELS,
+    requiresCode,
+    group: {
+      min: MIN_PARTICIPANTS,
+      max: MAX_PARTICIPANTS,
+      characters: Object.entries(CHARACTER_PROFILES).map(([id, c]) => ({ id, name: c.name, role: c.groupRole })),
+      scenes: SCENES.map(({ id, title }) => ({ id, title })),
+    },
+  });
 });
+
+registerGroupRoutes(app);
 
 /** Lets the UI check an access code before showing the app. */
 app.post("/api/access", (req, res) => {
@@ -58,8 +74,8 @@ app.post("/api/chat", async (req, res) => {
     res.status(401).json({ error: "Access code required" });
     return;
   }
-  const { sessionId, message, language, level, character } = req.body ?? {};
-  const profile = parseProfile(language, level, character);
+  const { sessionId, message, language, level, character, studentName } = req.body ?? {};
+  const profile = parseProfile(language, level, character, studentName);
   if (!isSessionId(sessionId)) {
     res.status(400).json({ error: "`sessionId` is invalid" });
     return;

@@ -51,9 +51,9 @@ voiceServer.on("connection", (ws: WebSocket) => {
     if (content.turnComplete) send({ type: "turn_complete" });
   };
 
-  async function start(language: unknown, level: unknown, character: unknown, code: unknown) {
+  async function start(language: unknown, level: unknown, character: unknown, studentName: unknown, code: unknown) {
     if (!codeOk(code)) return fail("Access code required");
-    const profile = parseProfile(language, level, character);
+    const profile = parseProfile(language, level, character, studentName);
     if (!profile) return fail("Unsupported language or level");
     if (activeCalls >= MAX_CALLS) return fail("Too many active conversations, try again shortly");
     activeCalls++;
@@ -98,7 +98,7 @@ voiceServer.on("connection", (ws: WebSocket) => {
       session?.sendRealtimeInput({ audio: { data: (data as Buffer).toString("base64"), mimeType: "audio/pcm;rate=16000" } });
       return;
     }
-    let msg: { type?: string; language?: unknown; level?: unknown; character?: unknown; code?: unknown; text?: unknown };
+    let msg: { type?: string; language?: unknown; level?: unknown; character?: unknown; studentName?: unknown; code?: unknown; text?: unknown };
     try {
       msg = JSON.parse(data.toString());
     } catch {
@@ -107,7 +107,7 @@ voiceServer.on("connection", (ws: WebSocket) => {
     if (msg.type === "start" && !starting) {
       starting = true;
       clearTimeout(startTimer);
-      void start(msg.language, msg.level, msg.character, msg.code);
+      void start(msg.language, msg.level, msg.character, msg.studentName, msg.code);
     } else if (msg.type === "text" && typeof msg.text === "string" && msg.text.trim()) {
       session?.sendRealtimeInput({ text: msg.text.slice(0, 2000) });
     }

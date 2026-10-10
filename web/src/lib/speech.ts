@@ -30,7 +30,7 @@ const normalize = (lang: string) => lang.toLowerCase().replace("_", "-");
  * other locales of the same language (tr), on-device voices before network ones, and
  * higher-quality "Premium/Enhanced/Natural" voices ahead of the basic ones.
  */
-const HIGH_QUALITY = /premium|enhanced|neural|natural|siri|wavenet/i;
+const HIGH_QUALITY = /premium|enhanced|neural|natural|siri|wavenet|google/i;
 
 export function voicesForLanguage(tag: string, voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice[] {
   const wanted = normalize(tag);

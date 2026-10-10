@@ -1,4 +1,4 @@
-export type Engine = "text" | "voice";
+export type Engine = "text" | "voice" | "group";
 
 export interface Message {
   id: number;

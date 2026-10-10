@@ -17,6 +17,10 @@ npm run dev                 # backend on http://localhost:3000
 cd web && npm install && npm run dev   # frontend, open the URL it prints
 ```
 
+## Group conversation
+
+Pick **Group conversation** as the engine to seat two to five of the characters around a 3D table. They talk with you and with each other, a conductor (built with [LangGraph](https://langchain-ai.github.io/langgraphjs/)) decides who speaks next, and everyone speaks in their own voice. You can jump in at any moment by typing, pressing Stop or using the microphone. See [docs/group-chat.md](docs/group-chat.md) for how it works, the API and the limits. Run the tests with `npm test`.
+
 ## Each teacher has their own voice
 
 In voice calls every character speaks with a different Gemini voice and personality: Professor Whiskers is calm and wise (Sadaltager), Ms. Luna warm and gentle (Sulafat), Coach Rex energetic (Fenrir), Robo-Tutor clear and even (Iapetus) and the anime teacher bright and breezy (Aoede). The voice and the personality text are chosen on the server from the character id (`src/characters.ts`), and the call has to be restarted to change them, so switching teacher starts a new conversation. Google does not label voices as male or female, so these are matched to its style descriptions; change them in that file if one doesn't suit. In text chat the browser's own voice is used, with a different pitch and pace per character (`web/src/avatar/characters.ts`).

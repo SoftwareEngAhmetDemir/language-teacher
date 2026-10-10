@@ -6,6 +6,7 @@ import { useRecognizer } from "./hooks/useRecognizer";
 import { useSpeaker } from "./hooks/useSpeaker";
 import { useVoiceConversation } from "./hooks/useVoiceConversation";
 import { CHARACTERS, DEFAULT_CHARACTER } from "./avatar/characters";
+import GroupChat from "./components/GroupChat";
 import MessageTools from "./components/MessageTools";
 import { loadPref, savePref } from "./lib/prefs";
 
@@ -30,7 +31,10 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [language, setLanguage] = useState(() => loadPref("language", "English"));
   const [level, setLevel] = useState(() => loadPref("level", "A1"));
-  const [engine, setEngine] = useState<Engine>(() => (loadPref("engine", "voice") === "text" ? "text" : "voice"));
+  const [engine, setEngine] = useState<Engine>(() => {
+    const saved = loadPref("engine", "voice");
+    return saved === "text" || saved === "group" ? saved : "voice";
+  });
   const [speakReplies, setSpeakReplies] = useState(true);
   // Microphone switch: once on it stays on, re-listening automatically after every turn.
   const [micOn, setMicOn] = useState(false);
@@ -40,6 +44,9 @@ export default function App() {
     const saved = loadPref("transcript", "");
     return saved === "on" || saved === "off" ? saved : null;
   });
+  // What the characters call the student: kept as typed (draft) and applied when the field is left.
+  const [studentName, setStudentName] = useState(() => loadPref("studentName", ""));
+  const [nameDraft, setNameDraft] = useState(studentName);
   const [showTeacher, setShowTeacher] = useState(() => loadPref("showTeacher", "on") === "on");
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [unlocked, setUnlocked] = useState(() => getCode() !== "");
@@ -69,13 +76,14 @@ export default function App() {
   const speechTag = config?.languages.find((l) => l.name === language)?.speechTag ?? "en-US";
   const character = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0];
   const lesson = useMemo<Lesson>(
-    () => ({ sessionId, language, level, character: character.id }),
-    [sessionId, language, level, character.id],
+    () => ({ sessionId, language, level, character: character.id, studentName: studentName || undefined }),
+    [sessionId, language, level, character.id, studentName],
   );
 
   const speaker = useSpeaker(speechTag, character.speech);
   const voice = useVoiceConversation();
   const voiceMode = engine === "voice";
+  const groupMode = engine === "group";
   const teacherState = {
     analyser: voiceMode ? voice.analyser : null,
     speaking: voiceMode ? voice.teacherSpeaking : speaker.speaking,
@@ -120,6 +128,17 @@ export default function App() {
     speaker.stop();
     recognizer.stop();
     setInterim("");
+  }
+
+  /** Applies the typed name. The characters need to start over to use it, so this begins a new conversation. */
+  function commitName() {
+    const name = nameDraft.trim().slice(0, 30);
+    setNameDraft(name);
+    if (name === studentName) return;
+    newConversation(() => {
+      setStudentName(name);
+      savePref("studentName", name);
+    });
   }
 
   function newConversation(change: () => void) {
@@ -198,6 +217,11 @@ export default function App() {
     if (!busy && !speaker.speaking) startListening();
   }
 
+  const toggleTranscript = () => {
+    const next = showTranscript ? "off" : "on";
+    setTranscriptPref(next);
+    savePref("transcript", next);
+  };
   const shown = voiceMode ? voice.messages : messages;
   const showTranscript = transcriptPref ? transcriptPref === "on" : !voiceMode;
   // Errors stay visible even when the transcript is hidden.
@@ -252,7 +276,7 @@ export default function App() {
         <h1>Language Teacher</h1>
       </header>
 
-      {showTeacher && (
+      {showTeacher && !groupMode && (
         <Suspense fallback={<div className="avatar" />}>
           {character.kind === "vrm" ? (
             <VrmTeacher modelUrl={character.url} {...teacherState} />
@@ -283,6 +307,18 @@ export default function App() {
           </select>
         </label>
         <label>
+          Your name
+          <input
+            value={nameDraft}
+            maxLength={30}
+            placeholder="So they can call you"
+            autoComplete="given-name"
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={commitName}
+            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          />
+        </label>
+        <label>
           Engine
           <select
             value={engine}
@@ -290,28 +326,31 @@ export default function App() {
           >
             <option value="voice">Natural voice conversation</option>
             <option value="text">Text chat with browser voice</option>
+            <option value="group">Group conversation (up to 5)</option>
           </select>
         </label>
-        <label>
-          Teacher
-          <select
-            value={character.id}
-            disabled={!showTeacher}
-            onChange={(e) => {
-              // A different teacher means a different voice and personality, so start a fresh conversation.
-              newConversation(() => {
-                setCharacterId(e.target.value);
-                savePref("character", e.target.value);
-              });
-            }}
-          >
-            {CHARACTERS.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        {!groupMode && (
+          <label>
+            Teacher
+            <select
+              value={character.id}
+              disabled={!showTeacher}
+              onChange={(e) => {
+                // A different teacher means a different voice and personality, so start a fresh conversation.
+                newConversation(() => {
+                  setCharacterId(e.target.value);
+                  savePref("character", e.target.value);
+                });
+              }}
+            >
+              {CHARACTERS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="check">
           <input
             type="checkbox"
@@ -321,9 +360,9 @@ export default function App() {
               savePref("showTeacher", e.target.checked ? "on" : "off");
             }}
           />
-          Show teacher
+          {groupMode ? "Show 3D table" : "Show teacher"}
         </label>
-        {!voiceMode && (
+        {engine === "text" && (
           <>
             <label>
               Voice
@@ -359,130 +398,140 @@ export default function App() {
         )}
       </section>
 
-      {!voiceMode && !recognizer.supported && (
-        <p className="notice">Voice input isn't supported in this browser. Use Chrome, Edge or Safari, or type instead.</p>
-      )}
-      {!voiceMode && speakReplies && !speaker.hasVoice && (
-        <p className="notice">
-          This browser has no {language} voice, so replies would be read with the wrong pronunciation. Install one in your system's speech settings (on macOS: System Settings → Accessibility → Spoken Content → System Voice → Manage Voices), then reload.
-        </p>
-      )}
-      {notice && !voiceMode && <p className="notice error">{notice}</p>}
-      {voiceMode && voice.error && <p className="notice error">{voice.error}</p>}
+      {groupMode ? (
+        <GroupChat
+          config={config}
+          language={language}
+          level={level}
+          speechTag={speechTag}
+          studentName={studentName || undefined}
+          showScene={showTeacher}
+          transcript={{ show: showTranscript, toggle: toggleTranscript }}
+        />
+      ) : (
+        <>
+        {!voiceMode && !recognizer.supported && (
+          <p className="notice">Voice input isn't supported in this browser. Use Chrome, Edge or Safari, or type instead.</p>
+        )}
+        {!voiceMode && speakReplies && !speaker.hasVoice && (
+          <p className="notice">
+            This browser has no {language} voice, so replies would be read with the wrong pronunciation. Install one in your system's speech settings (on macOS: System Settings → Accessibility → Spoken Content → System Voice → Manage Voices), then reload.
+          </p>
+        )}
+        {notice && !voiceMode && <p className="notice error">{notice}</p>}
+        {voiceMode && voice.error && <p className="notice error">{voice.error}</p>}
 
-      <div className="toolbar">
-        <button
-          type="button"
-          className="toggle"
-          aria-pressed={showTranscript}
-          onClick={() => {
-            const next = showTranscript ? "off" : "on";
-            setTranscriptPref(next);
-            savePref("transcript", next);
-          }}
-        >
-          💬 {showTranscript ? "Hide transcript" : "Show transcript"}
-          {!showTranscript && shown.length > 0 ? ` (${shown.length})` : ""}
-        </button>
-      </div>
+        <div className="toolbar">
+          <button
+            type="button"
+            className="toggle"
+            aria-pressed={showTranscript}
+            onClick={toggleTranscript}
+          >
+            💬 {showTranscript ? "Hide transcript" : "Show transcript"}
+            {!showTranscript && shown.length > 0 ? ` (${shown.length})` : ""}
+          </button>
+        </div>
 
-      <div className={`log${showTranscript ? "" : " collapsed"}`}>
-        {shown.length === 0 && (
-          <div className="empty">
-            {voiceMode ? (
-              <p>
-                Practise {language} at level {level} in a real conversation. Start the call, allow the microphone and just talk. You can interrupt the teacher at any moment. Headphones work best.
-              </p>
-            ) : (
-              <>
+        <div className={`log${showTranscript ? "" : " collapsed"}`}>
+          {shown.length === 0 && (
+            <div className="empty">
+              {voiceMode ? (
                 <p>
-                  Practise {language} at level {level}. Press the microphone and speak, type below, or let the teacher begin.
+                  Practise {language} at level {level} in a real conversation. Start the call, allow the microphone and just talk. You can interrupt the teacher at any moment. Headphones work best.
                 </p>
-                <button onClick={() => send(START_LESSON, true)} disabled={busy}>
-                  Start lesson
-                </button>
-              </>
-            )}
-          </div>
-        )}
-        {visible.map((m) => (
-          <div key={m.id} className={`entry ${m.role}`}>
-            <div className={`msg ${m.role}${m.error ? " error" : ""}${m.open ? " open" : ""}`}>
-              {m.text || "…"}
-              {m.interrupted && <span className="cut"> —</span>}
+              ) : (
+                <>
+                  <p>
+                    Practise {language} at level {level}. Press the microphone and speak, type below, or let the teacher begin.
+                  </p>
+                  <button onClick={() => send(START_LESSON, true)} disabled={busy}>
+                    Start lesson
+                  </button>
+                </>
+              )}
             </div>
-            {m.text && !m.error && !m.open && m.id !== streamingId && (
-              <MessageTools text={m.text} role={m.role} languages={languageNames} defaultTarget={defaultTranslation}>
-                {!voiceMode && m.role === "assistant" && (
-                  <>
-                    <button type="button" className="chip" onClick={() => { speaker.stop(); speaker.speakText(m.text); }}>
-                      🔊 Replay
-                    </button>
-                    {m.timing && <span className="timing">{m.timing}</span>}
-                  </>
-                )}
-              </MessageTools>
-            )}
-          </div>
-        ))}
-        {showTranscript && !voiceMode && interim && <div className="msg user interim">🎤 {interim}</div>}
-        {!voiceMode && micOn && !interim && (
-          <div className="mic-status">{listening ? "🎤 Listening…" : "Microphone on · paused while the teacher talks"}</div>
-        )}
-        <div ref={endRef} />
-      </div>
-
-      <div className="dock">
-        {voiceMode && (
-          <div className="call">
-            <button
-              className={`call-btn${voice.status === "idle" ? "" : " end"}${voice.teacherSpeaking ? " talking" : ""}`}
-              disabled={voice.status === "connecting"}
-              onClick={() => (voice.status === "idle" ? void voice.start(lesson) : voice.stop())}
-            >
-              {voice.status === "idle" ? "🎤 Start conversation" : voice.status === "connecting" ? "Connecting…" : "End conversation"}
-            </button>
-            {voice.status === "live" && (
-              <button onClick={voice.toggleMute}>{voice.muted ? "Unmute" : "Mute"}</button>
-            )}
-            <span className="call-status">
-              {voice.status === "live" &&
-                (voice.muted ? "Muted" : voice.teacherSpeaking ? "Teacher is speaking · talk any time to interrupt" : "Listening…")}
-            </span>
-          </div>
-        )}
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (voiceMode) voice.sendText(input);
-            else void send(input);
-            setInput("");
-          }}
-        >
-          {!voiceMode && (
-            <button type="button" className={`mic${micOn ? " on" : ""}${listening ? " live" : ""}`} onClick={toggleMic} disabled={!recognizer.supported} aria-label={micOn ? "Turn microphone off" : "Turn microphone on"} title={micOn ? "Microphone on. Click to turn off" : "Click to turn the microphone on"}>
-              🎤
-            </button>
           )}
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={voiceMode && voice.status !== "live" ? "Start the conversation to type as well" : `Type in ${language}…`}
-            disabled={voiceMode && voice.status !== "live"}
-            autoComplete="off"
-          />
-          {!voiceMode && (busy || speaker.speaking) ? (
-            <button type="button" onClick={stopAll}>
-              Stop
-            </button>
-          ) : (
-            <button type="submit" disabled={!input.trim() || (voiceMode && voice.status !== "live")}>
-              Send
-            </button>
+          {visible.map((m) => (
+            <div key={m.id} className={`entry ${m.role}`}>
+              <div className={`msg ${m.role}${m.error ? " error" : ""}${m.open ? " open" : ""}`}>
+                {m.text || "…"}
+                {m.interrupted && <span className="cut"> —</span>}
+              </div>
+              {m.text && !m.error && !m.open && m.id !== streamingId && (
+                <MessageTools text={m.text} role={m.role} languages={languageNames} defaultTarget={defaultTranslation}>
+                  {!voiceMode && m.role === "assistant" && (
+                    <>
+                      <button type="button" className="chip" onClick={() => { speaker.stop(); speaker.speakText(m.text); }}>
+                        🔊 Replay
+                      </button>
+                      {m.timing && <span className="timing">{m.timing}</span>}
+                    </>
+                  )}
+                </MessageTools>
+              )}
+            </div>
+          ))}
+          {showTranscript && !voiceMode && interim && <div className="msg user interim">🎤 {interim}</div>}
+          {!voiceMode && micOn && !interim && (
+            <div className="mic-status">{listening ? "🎤 Listening…" : "Microphone on · paused while the teacher talks"}</div>
           )}
-        </form>
-      </div>
+          <div ref={endRef} />
+        </div>
+
+        <div className="dock">
+          {voiceMode && (
+            <div className="call">
+              <button
+                className={`call-btn${voice.status === "idle" ? "" : " end"}${voice.teacherSpeaking ? " talking" : ""}`}
+                disabled={voice.status === "connecting"}
+                onClick={() => (voice.status === "idle" ? void voice.start(lesson) : voice.stop())}
+              >
+                {voice.status === "idle" ? "🎤 Start conversation" : voice.status === "connecting" ? "Connecting…" : "End conversation"}
+              </button>
+              {voice.status === "live" && (
+                <button onClick={voice.toggleMute}>{voice.muted ? "Unmute" : "Mute"}</button>
+              )}
+              <span className="call-status">
+                {voice.status === "live" &&
+                  (voice.muted ? "Muted" : voice.teacherSpeaking ? "Teacher is speaking · talk any time to interrupt" : "Listening…")}
+              </span>
+            </div>
+          )}
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (voiceMode) voice.sendText(input);
+              else void send(input);
+              setInput("");
+            }}
+          >
+            {!voiceMode && (
+              <button type="button" className={`mic${micOn ? " on" : ""}${listening ? " live" : ""}`} onClick={toggleMic} disabled={!recognizer.supported} aria-label={micOn ? "Turn microphone off" : "Turn microphone on"} title={micOn ? "Microphone on. Click to turn off" : "Click to turn the microphone on"}>
+                🎤
+              </button>
+            )}
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={voiceMode && voice.status !== "live" ? "Start the conversation to type as well" : `Type in ${language}…`}
+              disabled={voiceMode && voice.status !== "live"}
+              autoComplete="off"
+            />
+            {!voiceMode && (busy || speaker.speaking) ? (
+              <button type="button" onClick={stopAll}>
+                Stop
+              </button>
+            ) : (
+              <button type="submit" disabled={!input.trim() || (voiceMode && voice.status !== "live")}>
+                Send
+              </button>
+            )}
+          </form>
+        </div>
+        </>
+      )}
     </main>
   );
 }
