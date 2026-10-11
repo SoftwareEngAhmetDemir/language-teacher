@@ -45,10 +45,10 @@ const circle = (cx: number, cy: number, r: number, color: Tone, label: string) =
   b += zone(640, 110, 360, 640, "blue", "SERVER   Node + Express");
   b += zone(1170, 110, 240, 640, "purple", "GEMINI API");
 
-  b += card(50, 150, 400, 90, "green", "GroupChat (the screen)", ["Who sits at the table (2 to 5), scene,", "your name, typing and the microphone"]);
+  b += card(50, 150, 400, 90, "green", "GroupChat (the screen)", ["Who sits at the table (2 to 4), scene,", "your name, typing and the microphone"]);
   b += card(50, 262, 400, 100, "green", "useGroupChat (round driver)", ["Asks the server for lines, lets you interrupt,", "carries on by itself, tracks who is speaking"]);
   b += card(50, 480, 400, 100, "green", "GroupPlayer (audio queue)", ["Fetches each line's voice, plays them in order,", "one audio analyser per character"]);
-  b += card(50, 630, 400, 100, "green", "GroupScene (three.js)", ["Table, chairs, up to five seats. Lips follow", "each analyser; eyes follow who talks to whom"]);
+  b += card(50, 630, 400, 100, "green", "GroupScene (three.js)", ["Table, chairs, up to four seats. Lips follow", "each analyser; eyes follow who talks to whom"]);
 
   b += rect(660, 230, 320, 240, { fill: "#fff", stroke: C.blue });
   b += text(678, 260, "POST /api/group/round", { size: 18, weight: 700, fill: C.blue });

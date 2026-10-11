@@ -54,7 +54,7 @@ export const CHARACTER_PROFILES: Record<string, CharacterProfile> = {
     groupRole: "a precise, quirky classmate who loves facts and numbers and makes the odd robot joke",
   },
   anime: {
-    name: "Hana",
+    name: "Reta",
     voice: "Aoede", // Breezy
     ttsStyle: "bright, light and cheerful",
     persona: "You are a bright, cheerful and kind young teacher. Speak lightly and enthusiastically, with a smile in your voice.",

@@ -51,10 +51,10 @@ describe("parseRound", () => {
     assert.doesNotMatch(parsed.value.scene, /\n/);
   });
 
-  it("limits the table to 2-5 distinct, known characters", () => {
+  it("limits the table to 2-4 distinct, known characters", () => {
     assert.equal(parseRound({ ...body, participants: ["luna"] }, 3).ok, false);
     assert.equal(parseRound({ ...body, participants: ["luna", "rex", "robot", "anime", "professor", "ghost"] }, 3).ok, false);
-    assert.equal(parseRound({ ...body, participants: ["luna", "rex", "robot", "anime", "professor"] }, 3).ok, true);
+    assert.equal(parseRound({ ...body, participants: ["luna", "rex", "robot", "anime", "professor"] }, 3).ok, false);
     assert.equal(parseRound({ ...body, participants: ["luna", "luna"] }, 3).ok, false);
     assert.equal(parseRound({ ...body, participants: ["luna", "hacker"] }, 3).ok, false);
     assert.equal(parseRound({ ...body, participants: ["luna", "__proto__"] }, 3).ok, false);
@@ -551,8 +551,8 @@ describe("who a line is for", () => {
   const base = { participants: people, studentName: "Ali" };
 
   it("is whoever is called by name, first one wins, and the student by their own name", () => {
-    assert.equal(detectAddressee({ ...base, text: "Hana, what do you think?", speaker: "rex", transcript: [] }), "anime");
-    assert.equal(detectAddressee({ ...base, text: "Luna and Hana, come!", speaker: "rex", transcript: [] }), "luna");
+    assert.equal(detectAddressee({ ...base, text: "Reta, what do you think?", speaker: "rex", transcript: [] }), "anime");
+    assert.equal(detectAddressee({ ...base, text: "Luna and Reta, come!", speaker: "rex", transcript: [] }), "luna");
     assert.equal(detectAddressee({ ...base, text: "Well said, Ali!", speaker: "rex", transcript: [] }), "user");
     assert.equal(detectAddressee({ ...base, text: "Rex is great", speaker: "rex", transcript: [] }), undefined, "a speaker never addresses themselves");
   });
@@ -581,14 +581,14 @@ describe("who a line is for", () => {
       async speak(_req, id, direction, onDelta) {
         notes.push(direction);
         onDelta("ok");
-        return id === "rex" ? "Hana, you always win!" : "Thanks Rex.";
+        return id === "rex" ? "Reta, you always win!" : "Thanks Rex.";
       },
     };
     const req = request({ participants: ["rex", "anime", "luna"], maxTurns: 1, transcript: [{ speaker: "user", text: "Merhaba" }] });
     const { events } = await run(req, llm);
     const end = events.find((e) => e.type === "end");
-    assert.deepEqual(end, { type: "end", speaker: "rex", text: "Hana, you always win!", addressee: "anime" });
+    assert.deepEqual(end, { type: "end", speaker: "rex", text: "Reta, you always win!", addressee: "anime" });
     assert.match(notes[0], /tease her/);
-    assert.match(notes[0], /Speak to Hana\./);
+    assert.match(notes[0], /Speak to Reta\./);
   });
 });

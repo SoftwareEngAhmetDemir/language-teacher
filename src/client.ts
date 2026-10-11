@@ -17,11 +17,13 @@ export type ClientSettings = { vertexai: true; project: string; location: string
  * Set GOOGLE_GENAI_USE_VERTEXAI=true to use Vertex AI instead, where requests go to a region close to you:
  * GOOGLE_CLOUD_LOCATION (default global), your project in GOOGLE_CLOUD_PROJECT, and sign-in
  * through Application Default Credentials (`gcloud auth application-default login`).
+ * Live voice models are not served at the same locations in every project, so GEMINI_LIVE_LOCATION can send just the
+ * voice calls somewhere else (see `getLiveClient`).
  */
-export function clientSettings(env: Env = process.env): ClientSettings {
+export function clientSettings(env: Env = process.env, location = env.GOOGLE_CLOUD_LOCATION): ClientSettings {
   if (env.GOOGLE_GENAI_USE_VERTEXAI === "true") {
     if (!env.GOOGLE_CLOUD_PROJECT) throw new Error("Vertex mode needs GOOGLE_CLOUD_PROJECT");
-    return { vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: env.GOOGLE_CLOUD_LOCATION || DEFAULT_VERTEX_LOCATION };
+    return { vertexai: true, project: env.GOOGLE_CLOUD_PROJECT, location: location || DEFAULT_VERTEX_LOCATION };
   }
   if (!env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set");
   return { vertexai: false, apiKey: env.GEMINI_API_KEY };
@@ -38,4 +40,15 @@ export function getClient(): GoogleGenAI {
   }
   console.log("Gemini: Developer API (no region choice, see docs/regions.md)");
   return (client = new GoogleGenAI({ apiKey: settings.apiKey }));
+}
+
+let liveClient: GoogleGenAI | undefined;
+
+/** The client for Live voice calls: same as `getClient`, but at GEMINI_LIVE_LOCATION when that is set (Vertex AI only). */
+export function getLiveClient(): GoogleGenAI {
+  if (liveClient) return liveClient;
+  const settings = clientSettings(process.env, process.env.GEMINI_LIVE_LOCATION || process.env.GOOGLE_CLOUD_LOCATION);
+  if (!settings.vertexai || !process.env.GEMINI_LIVE_LOCATION) return (liveClient = getClient());
+  console.log(`Gemini Live: Vertex AI, region ${settings.location}`);
+  return (liveClient = new GoogleGenAI(settings));
 }

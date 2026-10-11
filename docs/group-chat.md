@@ -1,6 +1,6 @@
 # Group conversation
 
-Up to five characters sit around a table and talk with the student and with each other, like a small class. A **conductor** decides who speaks next, so the conversation flows instead of going round in a circle.
+Up to four characters sit around a table and talk with the student and with each other, like a small class. A **conductor** decides who speaks next, so the conversation flows instead of going round in a circle.
 
 ## Diagrams
 
@@ -53,7 +53,7 @@ Set `GROUP_LOG_TIMING=1` to log when each line is finished and when the first au
 - Lines are fetched as soon as they are written and played back to back, so the next voice is normally ready when the previous one ends. A line only appears in the transcript when it starts playing.
 - Every character plays through its own `AnalyserNode`. The 3D scene (`web/src/avatar/GroupScene.tsx`) reads it to move that character's mouth, exactly as in the one-to-one view (shared "rigs" in `cartoonRig.ts` and `vrmRig.ts`). Everyone looks at whoever is speaking; the speaker leans in. When a line is for one person, the speaker looks at them and they look back, and the others glance between the two. A line for the student is spoken to the camera.
 - Name tags above each head show who is speaking (blue) and who is about to speak ("…", purple).
-- The table is in a furnished room (window, panelled wall, pendant lamp, plant, chairs, wooden floor) with soft shadows. The colours change with the chosen scene, and the camera backs away as more people sit down, so up to five always fit. Seated cartoon characters rest their hands on the table; VRM characters keep their own arms. Seats are spaced by `web/src/avatar/seating.ts` so that neighbours are always at least one seat gap apart and characters never overlap; the rule is covered by `src/group/seating.test.ts`. Name labels are plain HTML positioned over the canvas, so the text stays sharp and shows a speaking indicator (animated bars) or a thinking indicator (bouncing dots).
+- The table is in a furnished room (window, panelled wall, pendant lamp, plant, chairs, wooden floor) with soft shadows. The colours change with the chosen scene, and the camera backs away as more people sit down, so up to four always fit. Seated cartoon characters rest their hands on the table; VRM characters keep their own arms. Seats are spaced by `web/src/avatar/seating.ts` so that neighbours are always at least one seat gap apart and characters never overlap; the rule is covered by `src/group/seating.test.ts`. Name labels are plain HTML positioned over the canvas, so the text stays sharp and shows a speaking indicator (animated bars) or a thinking indicator (bouncing dots).
 
 ## Interrupting
 
@@ -66,7 +66,7 @@ The student can jump in at any time by typing, pressing **Stop**, or saying some
 ```jsonc
 // request
 { "language": "Turkish", "level": "B1",
-  "participants": ["professor", "luna", "rex"],       // 2 to 5 distinct ids
+  "participants": ["professor", "luna", "rex"],       // 2 to 4 distinct ids
   "transcript": [{ "speaker": "user", "text": "Merhaba" }],   // last 40 lines
   "scene": "cafe" }                                    // a scene id, or the student's own topic
 // events
@@ -78,7 +78,7 @@ The student can jump in at any time by typing, pressing **Stop**, or saying some
 
 `POST /api/speak` `{ "text", "character" }` → `application/octet-stream` (16-bit mono PCM, 24 kHz; `X-Sample-Rate` header).
 
-`GET /api/config` also lists the characters, scenes and the 2 to 5 limit for the UI.
+`GET /api/config` also lists the characters, scenes and the 2 to 4 limit for the UI.
 
 **Who a line is for** is decided on the server (`detectAddressee` in `conductor.ts`): whoever is called by name first (another character, or the student by their own name), else the person the conductor intended (it returns a `to` field), else the person who spoke just before. The speaker is told who to talk to, so they use that person's name.
 
@@ -88,7 +88,7 @@ The server is stateless: the browser sends the transcript with every round, so r
 
 ## Safety and cost
 
-- Everything the client sends is validated (`src/group/validate.ts`): known character ids (own properties only), 2 to 5 distinct participants, transcript speakers must be at the table, lines capped at 600 characters, language and level from allowlists. Free text only reaches prompts as quoted conversation.
+- Everything the client sends is validated (`src/group/validate.ts`): known character ids (own properties only), 2 to 4 distinct participants, transcript speakers must be at the table, lines capped at 600 characters, language and level from allowlists. Free text only reaches prompts as quoted conversation.
 - Both routes honour `ACCESS_CODE`. At most `GROUP_MAX_ROUNDS` rounds and `GROUP_MAX_SPEECH` speech requests run at once (429 beyond that).
 - A round costs up to 4 speaker calls, 4 conductor calls and 4 TTS calls. Auto-continue is capped at 3 rounds in a row. Use faster or smaller models by setting `GEMINI_CONDUCTOR_MODEL` and per-character `model`.
 

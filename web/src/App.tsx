@@ -8,6 +8,8 @@ import { useVoiceConversation } from "./hooks/useVoiceConversation";
 import { CHARACTERS, DEFAULT_CHARACTER } from "./avatar/characters";
 import GroupChat from "./components/GroupChat";
 import MessageTools from "./components/MessageTools";
+import ConversationControls from "./components/ConversationControls";
+import { exportConversation } from "./lib/exportConversation";
 import { loadPref, savePref } from "./lib/prefs";
 
 const LEVEL_NAMES: Record<string, string> = {
@@ -61,7 +63,7 @@ export default function App() {
 
   const abortRef = useRef<AbortController | null>(null);
   const nextId = useRef(1);
-  const endRef = useRef<HTMLDivElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchConfig()
@@ -91,6 +93,7 @@ export default function App() {
   };
   const recognizer = useRecognizer({
     lang: speechTag,
+    shouldListen: () => micOn && !busy && !speaker.speaking,
     onInterim: setInterim,
     onFinal: (text) => {
       setInterim("");
@@ -112,7 +115,8 @@ export default function App() {
   });
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end" });
+    // Scroll the transcript box itself, not the page.
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [messages, voice.messages, interim]);
 
   // While the mic is on, keep listening, pausing only while the teacher is talking so it doesn't hear itself.
@@ -203,6 +207,20 @@ export default function App() {
       abortRef.current = null;
       setBusy(false);
     }
+  }
+
+  /** Ends whatever is going on: the call, the reply being written, speech and the microphone. The transcript stays. */
+  function stopConversation() {
+    stopAll();
+    voice.stop();
+    setMicOn(false);
+  }
+
+  function exportTranscript() {
+    exportConversation(
+      `${voiceMode ? "Voice call" : "Text chat"} in ${language} (${level})`,
+      shown.map((m) => ({ speaker: m.role === "user" ? (studentName || "You") : character.name, text: m.text, interrupted: m.interrupted })),
+    );
   }
 
   function toggleMic() {
@@ -326,7 +344,7 @@ export default function App() {
           >
             <option value="voice">Natural voice conversation</option>
             <option value="text">Text chat with browser voice</option>
-            <option value="group">Group conversation (up to 5)</option>
+            <option value="group">Group conversation (up to 4)</option>
           </select>
         </label>
         {!groupMode && (
@@ -422,6 +440,12 @@ export default function App() {
         {voiceMode && voice.error && <p className="notice error">{voice.error}</p>}
 
         <div className="toolbar">
+          <ConversationControls
+            canStop={busy || speaker.speaking || micOn || listening || voice.status !== "idle"}
+            canExport={shown.some((m) => m.text.trim() && !m.error)}
+            onStop={stopConversation}
+            onExport={exportTranscript}
+          />
           <button
             type="button"
             className="toggle"
@@ -433,7 +457,7 @@ export default function App() {
           </button>
         </div>
 
-        <div className={`log${showTranscript ? "" : " collapsed"}`}>
+        <div ref={logRef} className={`log${showTranscript ? "" : " collapsed"}`}>
           {shown.length === 0 && (
             <div className="empty">
               {voiceMode ? (
@@ -476,7 +500,6 @@ export default function App() {
           {!voiceMode && micOn && !interim && (
             <div className="mic-status">{listening ? "🎤 Listening…" : "Microphone on · paused while the teacher talks"}</div>
           )}
-          <div ref={endRef} />
         </div>
 
         <div className="dock">

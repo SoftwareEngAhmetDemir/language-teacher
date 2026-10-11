@@ -253,7 +253,7 @@ export default function GroupScene({ seats, sceneId, analyserFor, speakingId, th
         if (!p.rig) return;
         // Where to look. The speaker looks at the person they are talking to, and that person looks back; everyone
         // else follows the speaker and now and then glances at the person being spoken to. With nobody speaking, or
-        // a remark to the whole table, eyes wander around the table and to the student.
+        // a remark to the whole table, eyes mostly go to the student. Someone talking to the student looks at the screen throughout.
         if (t > p.nextLook) {
           const others = placed.map((_, j) => j).filter((j) => j !== i);
           const around = () => (others.length && Math.random() < 0.7 ? heads[others[Math.floor(Math.random() * others.length)]] : camera.position);
@@ -263,8 +263,9 @@ export default function GroupScene({ seats, sceneId, analyserFor, speakingId, th
           let target: THREE.Vector3;
           if (isSpeaking) {
             if (partner >= 0) target = first || Math.random() < 0.85 ? heads[partner] : around();
-            else if (toStudent) target = first || Math.random() < 0.8 ? camera.position : around();
-            else target = Math.random() < 0.45 ? camera.position : around();
+            // Talking to the student: look straight out of the screen the whole time. A remark to the whole table mostly does too.
+            else if (toStudent) target = camera.position;
+            else target = Math.random() < 0.75 ? camera.position : around();
           } else if (i === partner && talker >= 0) {
             target = first || Math.random() < 0.92 ? heads[talker] : camera.position;
           } else if (talker >= 0) {

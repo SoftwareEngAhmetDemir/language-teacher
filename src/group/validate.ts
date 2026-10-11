@@ -4,7 +4,7 @@ import type { Line, RoundRequest } from "./types.js";
 import { sceneBrief } from "./scenes.js";
 
 export const MIN_PARTICIPANTS = 2;
-export const MAX_PARTICIPANTS = 5;
+export const MAX_PARTICIPANTS = 4;
 const MAX_TRANSCRIPT_LINES = 40;
 const MAX_LINE_CHARS = 600;
 const MAX_TOPIC_CHARS = 120;

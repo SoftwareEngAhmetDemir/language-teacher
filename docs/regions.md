@@ -43,7 +43,7 @@ GOOGLE_CLOUD_LOCATION=global
 
 - **Billing.** Vertex AI is billed to the project. Its request limits are usually higher than a free API key's, which also helps the speech models.
 - **Speech.** Vertex AI doesn't offer the Interactions API, so speech uses the classic streaming call, which keeps the audio streaming. The 3.x speech models read the text word for word, so the line is sent without a style instruction; the 2.5 speech models get "Say in a gentle way: ..." in front, which they treat as an instruction.
-- **Live voice.** `gemini-3.8-live` connects on Vertex AI at `global`.
+- **Live voice.** `gemini-3.8-live` connects on Vertex AI at `global`. In some projects it is only served elsewhere (for example `us-central1`); set `GEMINI_LIVE_LOCATION` to send voice calls there while text and speech stay at `global`.
 - **Model names** can differ or be missing in a location. If one isn't found, the log names it; set `GEMINI_TEXT_MODEL`, `GEMINI_TTS_MODEL` or `GEMINI_LIVE_MODEL`.
 - **A key that has run out of credit** (HTTP 402 "prepayment credits are depleted") makes every call fail; Vertex AI uses the project's billing instead.
 - **Where deployed**, the same applies: check with the probe from the server, not from your laptop.

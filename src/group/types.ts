@@ -12,7 +12,7 @@ export interface Line {
 export interface RoundRequest {
   language: string;
   level: Level;
-  /** Character ids at the table, 2 to 5. */
+  /** Character ids at the table, 2 to 4. */
   participants: string[];
   /** The conversation so far, as the student has seen and heard it. */
   transcript: Line[];

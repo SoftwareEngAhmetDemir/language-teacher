@@ -2,7 +2,7 @@ import { Modality, type LiveServerMessage, type Session } from "@google/genai";
 import { WebSocketServer, type WebSocket } from "ws";
 import { codeOk } from "./access.js";
 import { voiceFor } from "./characters.js";
-import { getClient } from "./client.js";
+import { getLiveClient } from "./client.js";
 import { buildSystemInstruction, parseProfile } from "./teacher.js";
 
 const MODEL = process.env.GEMINI_LIVE_MODEL ?? "gemini-3.8-live";
@@ -62,7 +62,7 @@ voiceServer.on("connection", (ws: WebSocket) => {
     const voice = voiceFor(profile.character);
 
     try {
-      const live = await getClient().live.connect({
+      const live = await getLiveClient().live.connect({
         model: MODEL,
         config: {
           responseModalities: [Modality.AUDIO],

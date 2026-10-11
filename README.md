@@ -19,7 +19,7 @@ cd web && npm install && npm run dev   # frontend, open the URL it prints
 
 ## Group conversation
 
-Pick **Group conversation** as the engine to seat two to five of the characters around a 3D table. They talk with you and with each other, a conductor (built with [LangGraph](https://langchain-ai.github.io/langgraphjs/)) decides who speaks next, and everyone speaks in their own voice. You can jump in at any moment by typing, pressing Stop or using the microphone. See [docs/group-chat.md](docs/group-chat.md) for how it works, the API and the limits. Run the tests with `npm test`.
+Pick **Group conversation** as the engine to seat two to four of the characters around a 3D table. They talk with you and with each other, a conductor (built with [LangGraph](https://langchain-ai.github.io/langgraphjs/)) decides who speaks next, and everyone speaks in their own voice. You can jump in at any moment by typing, pressing Stop or using the microphone. See [docs/group-chat.md](docs/group-chat.md) for how it works, the API and the limits. Run the tests with `npm test`.
 
 ## Each teacher has their own voice
 

@@ -1,7 +1,9 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { CHARACTERS } from "../avatar/characters";
 import type { Seat } from "../avatar/GroupScene";
 import MessageTools from "./MessageTools";
+import ConversationControls from "./ConversationControls";
+import { exportConversation } from "../lib/exportConversation";
 import { useGroupChat } from "../hooks/useGroupChat";
 import { useRecognizer } from "../hooks/useRecognizer";
 import type { Config } from "../lib/api";
@@ -39,7 +41,7 @@ function loadMembers(valid: string[], min: number, max: number): string[] {
   return DEFAULT_MEMBERS.filter((id) => valid.includes(id)).slice(0, max);
 }
 
-/** Group conversation: up to five characters around a table talk with the student and with each other. */
+/** Group conversation: up to four characters around a table talk with the student and with each other. */
 export default function GroupChat({ config, language, level, speechTag, studentName, showScene, transcript }: Props) {
   const { min, max, characters, scenes } = config.group;
   const validIds = useMemo(() => characters.map((c) => c.id), [characters]);
@@ -73,9 +75,14 @@ export default function GroupChat({ config, language, level, speechTag, studentN
     fallbackFor: (id) => ({ tag: speechTag, ...(CHARACTERS.find((c) => c.id === id)?.speech ?? { pitch: 1, rate: 1 }) }),
   });
   const running = group.status === "running";
+  const logRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
+  }, [group.messages, interim]);
 
   const recognizer = useRecognizer({
     lang: speechTag,
+    shouldListen: () => micOn && !running,
     onInterim: setInterim,
     onFinal: (text) => {
       setInterim("");
@@ -120,6 +127,20 @@ export default function GroupChat({ config, language, level, speechTag, studentN
     setMicOn(true);
     setNotice(null);
     if (!running) startListening();
+  }
+
+  function stopConversation() {
+    group.interrupt();
+    setMicOn(false);
+    recognizer.stop();
+    setInterim("");
+  }
+
+  function exportTranscript() {
+    exportConversation(
+      `Group conversation in ${language} (${level})`,
+      group.messages.map((m) => ({ speaker: m.speaker === "user" ? (studentName || "You") : nameOf(m.speaker), text: m.text, interrupted: m.interrupted })),
+    );
   }
 
   const sceneValue = topic.trim() || sceneId;
@@ -223,13 +244,19 @@ export default function GroupChat({ config, language, level, speechTag, studentN
       )}
 
       <div className="toolbar">
+        <ConversationControls
+          canStop={running || micOn || listening || group.thinkingId !== null || group.speakingId !== null}
+          canExport={group.messages.length > 0}
+          onStop={stopConversation}
+          onExport={exportTranscript}
+        />
         <button type="button" className="toggle" aria-pressed={transcript.show} onClick={transcript.toggle}>
           💬 {transcript.show ? "Hide transcript" : "Show transcript"}
           {!transcript.show && group.messages.length > 0 ? ` (${group.messages.length})` : ""}
         </button>
       </div>
 
-      <div className={`log${transcript.show ? "" : " collapsed"}`}>
+      <div ref={logRef} className={`log${transcript.show ? "" : " collapsed"}`}>
         {transcript.show &&
           group.messages.map((m) => (
             <div key={m.id} className={`entry ${m.speaker === "user" ? "user" : "assistant"}`}>
