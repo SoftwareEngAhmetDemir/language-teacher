@@ -11,7 +11,8 @@ export const CENTREPIECES: readonly PropId[] = ["flowers", "food", "laptop"];
 
 export interface PropContext {
   kit: Kit;
-  scene: THREE.Scene;
+  /** Where the prop is added: the scene, or the part of it that is hidden when a painted backdrop replaces the wall. */
+  scene: THREE.Object3D;
   palette: Palette;
   /** Height of the floor, and the wall's depth. */
   floor: number;

@@ -40,6 +40,7 @@ before(async () => {
   registerGroupRoutes(app, {
     llm,
     design: async () => null,
+    image: async (topic) => (topic === "unpaintable" ? null : { mime: "image/jpeg", data: Buffer.from([255, 216, 255]) }),
     speak: async function* (text) {
       if (text === "fail") throw new Error("no voice today");
       yield Buffer.from(new Int16Array([1, 2]).buffer);
@@ -139,5 +140,22 @@ describe("POST /api/group/scene-style", () => {
     assert.equal((await post({ topic: "   " })).status, 400);
     assert.equal((await post({})).status, 400);
     assert.equal((await post({ topic: "football" }, { "Content-Type": "application/json" })).status, 401);
+  });
+});
+
+describe("POST /api/group/backdrop", () => {
+  const post = (payload: unknown, h: Record<string, string> = headers) => fetch(`${base}/api/group/backdrop`, { method: "POST", headers: h, body: JSON.stringify(payload) });
+
+  it("returns the picture painted for the topic", async () => {
+    const res = await post({ topic: "a school day" });
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), "image/jpeg");
+    assert.deepEqual([...new Uint8Array(await res.arrayBuffer())], [255, 216, 255]);
+  });
+
+  it("says so when no picture can be made, and needs a topic and the access code", async () => {
+    assert.equal((await post({ topic: "unpaintable" })).status, 502);
+    assert.equal((await post({ topic: " " })).status, 400);
+    assert.equal((await post({ topic: "school" }, { "Content-Type": "application/json" })).status, 401);
   });
 });

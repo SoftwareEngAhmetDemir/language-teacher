@@ -177,10 +177,15 @@ interface RoomOptions {
   /** The rug reaches past the chairs. */
   rugRadius: number;
   centreZ: number;
+  /** A picture of the wall (a URL) that replaces the painted wall, window, pictures and shelves once it has loaded. */
+  backdrop?: string | null;
 }
 
+/** Width of the wall picture, in scene units. A little more than the width the camera sees. */
+const BACKDROP_WIDTH = 19;
+
 /** Walls, floor, rug, window with curtains, shelves, pictures, plant and a pendant lamp. */
-export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, props, sky: skyView, floor, tableTop, tableRadius, rugRadius, centreZ }: RoomOptions): void {
+export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, props, sky: skyView, floor, tableTop, tableRadius, rugRadius, centreZ, backdrop }: RoomOptions): () => void {
   const { solid, flat, own } = kit;
   const wallZ = -10;
   const context: PropContext = { kit, scene, palette, floor, wallZ };
@@ -192,14 +197,18 @@ export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, props, sky: s
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(0, floor, -9);
   ground.receiveShadow = true;
-  scene.add(wall, ground);
+  scene.add(ground);
+  // Everything on the wall is kept together so a painted backdrop can take its place.
+  const wallDecor = new THREE.Group();
+  wallDecor.add(wall);
+  scene.add(wallDecor);
 
   // Skirting board and crown moulding.
   const skirting = solid(new THREE.BoxGeometry(64, 0.35, 0.12), 0xffffff, { edge: 0, castShadow: false });
   skirting.position.set(0, floor + 0.18, wallZ + 0.06);
   const crown = solid(new THREE.BoxGeometry(64, 0.3, 0.16), 0xffffff, { edge: 0, castShadow: false });
   crown.position.set(0, floor + 7.5, wallZ + 0.08);
-  scene.add(skirting, crown);
+  wallDecor.add(skirting, crown);
 
   // A rug under the table.
   const rug = flat(new THREE.CircleGeometry(rugRadius, 64), new THREE.MeshToonMaterial({ map: own(rugTexture(palette.rug)), gradientMap: kit.gradientMap }));
@@ -237,26 +246,26 @@ export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, props, sky: s
   crossbar.position.set(windowX, windowY, wallZ + 0.26);
   const sill = solid(new THREE.BoxGeometry(3.9, 0.14, 0.4), 0xffffff, { edge: 1.02, castShadow: false });
   sill.position.set(windowX, windowY - 1.62, wallZ + 0.25);
-  scene.add(frame, sky, ...view, bar, crossbar, sill);
+  wallDecor.add(frame, sky, ...view, bar, crossbar, sill);
   for (const side of [-1, 1]) {
     const curtain = solid(new RoundedBoxGeometry(0.75, 3.7, 0.3, 3, 0.14), palette.curtain, { edge: 1.03, castShadow: false });
     curtain.position.set(windowX + side * 2.05, windowY - 0.15, wallZ + 0.35);
-    scene.add(curtain);
+    wallDecor.add(curtain);
   }
   const rod = solid(new THREE.CylinderGeometry(0.05, 0.05, 5.4, 10), 0x3a2a20, { edge: 0, castShadow: false });
   rod.rotation.z = Math.PI / 2;
   rod.position.set(windowX, windowY + 1.85, wallZ + 0.4);
-  scene.add(rod);
+  wallDecor.add(rod);
 
   // Two pictures, or a map or a television in their place.
   const wallProp = props.find((p): p is "map" | "tv" => WALL_PROPS.includes(p));
-  if (wallProp) buildWallProp(wallProp, 4.4, context);
+  if (wallProp) buildWallProp(wallProp, 4.4, { ...context, scene: wallDecor });
   for (const [x, w, h, kind] of wallProp ? [] : ([[3.3, 2.1, 1.6, "landscape"], [5.5, 1.3, 1.7, "abstract"]] as const)) {
     const picture = solid(new THREE.BoxGeometry(w + 0.24, h + 0.24, 0.12), 0x3a2a20, { edge: 1.01, castShadow: false });
     picture.position.set(x, floor + 5.6, wallZ + 0.1);
     const art = flat(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: own(artTexture(kind, palette)) }));
     art.position.set(x, floor + 5.6, wallZ + 0.18);
-    scene.add(picture, art);
+    wallDecor.add(picture, art);
   }
 
   // Whatever stands on the floor, at the two free places by the wall.
@@ -267,21 +276,21 @@ export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, props, sky: s
   const caseY = floor + 3.2;
   const shelf = solid(new THREE.BoxGeometry(2.6, 6.2, 0.7), 0x6f4a2e, { edge: 1.01, castShadow: false });
   shelf.position.set(caseX, caseY, wallZ + 0.4);
-  if (props.includes("bookcase")) scene.add(shelf);
+  if (props.includes("bookcase")) wallDecor.add(shelf);
   const random = seeded(7);
   const bookColors = [0xc0503a, 0x4aa3df, 0xf2c230, 0x6aa84f, 0x8e44ad, 0xe8e0d0, palette.lamp, palette.curtain];
   for (let row = 0; row < (props.includes("bookcase") ? 4 : 0); row++) {
     const shelfY = caseY - 2.6 + row * 1.55;
     const board = solid(new THREE.BoxGeometry(2.4, 0.1, 0.62), 0x8a6240, { edge: 0, castShadow: false });
     board.position.set(caseX, shelfY, wallZ + 0.45);
-    scene.add(board);
+    wallDecor.add(board);
     let x = caseX - 1.1;
     while (x < caseX + 1.05) {
       const width = 0.11 + random() * 0.12;
       const height = 0.7 + random() * 0.55;
       const book = solid(new THREE.BoxGeometry(width, height, 0.4), bookColors[Math.floor(random() * bookColors.length)], { edge: 0, castShadow: false });
       book.position.set(x + width / 2, shelfY + 0.05 + height / 2, wallZ + 0.5);
-      scene.add(book);
+      wallDecor.add(book);
       x += width + 0.01;
     }
   }
@@ -310,6 +319,34 @@ export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, props, sky: s
   );
   beam.position.set(0, (2.4 + tableTop) / 2, centreZ);
   scene.add(cord, shade, bulb, beam);
+
+  // A picture of the wall for the student's topic, painted by an image model. Until it arrives the painted wall stays.
+  let cancelled = false;
+  if (backdrop) {
+    new THREE.TextureLoader().load(
+      backdrop,
+      (texture) => {
+        if (cancelled) {
+          texture.dispose();
+          return;
+        }
+        texture.colorSpace = THREE.SRGBColorSpace;
+        own(texture);
+        const { width, height } = texture.image as { width: number; height: number };
+        const planeHeight = BACKDROP_WIDTH * (height / width);
+        const picture = flat(new THREE.PlaneGeometry(BACKDROP_WIDTH, planeHeight), new THREE.MeshBasicMaterial({ map: texture }));
+        // Sunk a little below the floor, which hides the strip of floor that is often painted along the bottom.
+        picture.position.set(0, floor - planeHeight * 0.06 + planeHeight / 2, wallZ + 0.02);
+        scene.add(picture);
+        wallDecor.visible = false;
+      },
+      undefined,
+      () => {},
+    );
+  }
+  return () => {
+    cancelled = true;
+  };
 }
 
 interface TableOptions {

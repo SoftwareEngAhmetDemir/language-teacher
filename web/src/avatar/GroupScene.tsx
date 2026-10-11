@@ -24,6 +24,10 @@ interface Props {
   seats: Seat[];
   /** The room's colours, what stands in it and the view from its window. */
   style: SceneStyle;
+  /** A picture of the wall behind the table (a URL), painted for the student's own topic. */
+  backdrop?: string | null;
+  /** While set, a spinner with this message shows over the scene, for example while the wall is being painted. */
+  busyText?: string | null;
   /** The analyser carrying this character's voice right now, if its audio is playing through the page. */
   analyserFor: (id: string) => AnalyserNode | null;
   /** Who is talking (their lips move) and who is about to talk (their label shows "…"). */
@@ -70,7 +74,7 @@ interface Placed {
 }
 
 /** Up to five teachers around a table in a furnished room. Each moves its mouth with its own voice and looks at whoever is talking. */
-export default function GroupScene({ seats, style, analyserFor, speakingId, thinkingId, addresseeId }: Props) {
+export default function GroupScene({ seats, style, backdrop, busyText, analyserFor, speakingId, thinkingId, addresseeId }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef<(HTMLDivElement | null)[]>([]);
   const latest = useRef({ analyserFor, speakingId, thinkingId, addresseeId });
@@ -120,7 +124,7 @@ export default function GroupScene({ seats, style, analyserFor, speakingId, thin
     scene.add(glow);
 
     const kit = createKit();
-    buildRoom(kit, scene, { palette, props, sky, floor: FLOOR, tableTop: TABLE_TOP, tableRadius, rugRadius: layout.radius + 1.4, centreZ: CENTRE_Z });
+    const cancelBackdrop = buildRoom(kit, scene, { palette, props, sky, backdrop, floor: FLOOR, tableTop: TABLE_TOP, tableRadius, rugRadius: layout.radius + 1.4, centreZ: CENTRE_Z });
     buildTable(kit, scene, { palette, props, floor: FLOOR, tableTop: TABLE_TOP, radius: tableRadius, centreZ: CENTRE_Z });
 
     const placed: Placed[] = seats.map((seat, i) => {
@@ -291,12 +295,13 @@ export default function GroupScene({ seats, style, analyserFor, speakingId, thin
       cancelAnimationFrame(frame);
       observer.disconnect();
       placed.forEach((p) => p.rig?.dispose());
+      cancelBackdrop();
       kit.dispose();
       renderer.dispose();
     };
     // Rebuilt when who is at the table, or the scene, changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seatKey, styleKey]);
+  }, [seatKey, styleKey, backdrop]);
 
   return (
     <div className="avatar group-scene">
@@ -310,6 +315,12 @@ export default function GroupScene({ seats, style, analyserFor, speakingId, thin
           </div>
         ))}
       </div>
+      {busyText && (
+        <div className="scene-loading" role="status">
+          <span className="spinner" aria-hidden="true" />
+          {busyText}
+        </div>
+      )}
       {failed && <span className="avatar-note">The 3D table couldn't load on this device.</span>}
     </div>
   );

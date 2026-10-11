@@ -2,18 +2,20 @@ interface Props {
   /** Something is happening that can be stopped: speech, a reply being written, a call, the microphone. */
   canStop: boolean;
   canExport: boolean;
+  /** Everything but Stop waits while the room is being prepared. */
+  locked?: boolean;
   onStop: () => void;
   onExport: () => void;
 }
 
 /** Stop the conversation and save its transcript. */
-export default function ConversationControls({ canStop, canExport, onStop, onExport }: Props) {
+export default function ConversationControls({ canStop, canExport, locked, onStop, onExport }: Props) {
   return (
     <>
       <button type="button" className="toggle stop" disabled={!canStop} onClick={onStop}>
         ⏹ Stop conversation
       </button>
-      <button type="button" className="toggle" disabled={!canExport} onClick={onExport}>
+      <button type="button" className="toggle" disabled={!canExport || locked} onClick={onExport}>
         ⬇ Export conversation
       </button>
     </>

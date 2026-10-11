@@ -80,6 +80,8 @@ The student can jump in at any time by typing, pressing **Stop**, or saying some
 
 `POST /api/group/scene-style` `{ "topic" }` → the room for the student's own topic: `{ palette, props, sky }`. A model picks four colours, a few props (map or tv; up to two of guitar, ball, globe, suitcase, easel; flowers, food or laptop for the table; bookcase, plant) and the sky at the window (day, sunset, night). `src/group/sceneStyle.ts` checks all of it, keeps the walls light, works out the rest of the palette, and falls back to keyword rules if the model fails. The browser draws the props (`web/src/avatar/props.ts`) when the scene starts with an own topic; ready-made scenes have their own set in `web/src/avatar/sceneStyle.ts`.
 
+`POST /api/group/backdrop` `{ "topic" }` → a picture (JPEG, PNG or WebP) of the back wall for the student's own topic, painted by an image model (`src/group/backdrop.ts`; `GEMINI_IMAGE_MODEL` pins one model, otherwise the lite image model is tried first and the fuller one if it fails or is out of quota). It takes about five seconds, so the room appears first with the props above and the picture replaces the painted wall, window, pictures and shelves when it arrives. If it fails the room simply stays as it is. Recent pictures are cached on the server.
+
 `GET /api/config` also lists the characters, scenes and the 2 to 4 limit for the UI.
 
 **Who a line is for** is decided on the server (`detectAddressee` in `conductor.ts`): whoever is called by name first (another character, or the student by their own name), else the person the conductor intended (it returns a `to` field), else the person who spoke just before. The speaker is told who to talk to, so they use that person's name.

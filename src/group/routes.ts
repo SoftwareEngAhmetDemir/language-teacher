@@ -3,6 +3,7 @@ import { codeOk } from "../access.js";
 import { isCharacterId } from "../characters.js";
 import { runRound } from "./graph.js";
 import { geminiGroupLLM, type GroupLLM } from "./llm.js";
+import { designBackdrop, geminiImage, type ImageModel } from "./backdrop.js";
 import { designScene, geminiDesign, type DesignModel } from "./sceneStyle.js";
 import { describeError, speakStream, TTS_SAMPLE_RATE } from "./tts.js";
 import type { GroupEvent } from "./types.js";
@@ -13,6 +14,7 @@ const MAX_ROUNDS_AT_ONCE = Number(process.env.GROUP_MAX_ROUNDS ?? 6);
 const MAX_SPEECH_AT_ONCE = Number(process.env.GROUP_MAX_SPEECH ?? 8);
 const MAX_SPEECH_CHARS = 600;
 const MAX_TOPIC_CHARS = 120;
+const MAX_BACKDROPS_AT_ONCE = Number(process.env.GROUP_MAX_BACKDROPS ?? 3);
 /** The first line of a round is picked by rules, not by a model call, so the group starts talking sooner. */
 const FAST_START = process.env.GROUP_FAST_START !== "false";
 /** Set GROUP_LOG_TIMING=1 to log how long each round and each voice takes to start. */
@@ -20,6 +22,7 @@ const LOG_TIMING = Boolean(process.env.GROUP_LOG_TIMING);
 
 let activeRounds = 0;
 let activeSpeech = 0;
+let activeBackdrops = 0;
 
 /** The model calls behind the routes, replaceable in tests. */
 export interface GroupDeps {
@@ -28,6 +31,8 @@ export interface GroupDeps {
   speak: (text: string, character: string) => AsyncIterable<Buffer>;
   /** Chooses the room's colours and props for a topic. */
   design?: DesignModel;
+  /** Paints the wall behind the table for a topic. */
+  image?: ImageModel;
 }
 
 const defaultDeps: GroupDeps = { llm: geminiGroupLLM, speak: speakStream };
@@ -108,6 +113,40 @@ export function registerGroupRoutes(app: Express, deps: GroupDeps = defaultDeps)
       res.json(await designScene(topic, deps.design ?? geminiDesign, controller.signal));
     } catch {
       if (!res.headersSent) res.status(499).end();
+    }
+  });
+
+  /** Paints the wall behind the table for the student's own topic. Responds with the picture itself (JPEG, PNG or WebP). */
+  app.post("/api/group/backdrop", async (req, res) => {
+    if (!codeOk(req.get("x-access-code"))) {
+      res.status(401).json({ error: "Access code required" });
+      return;
+    }
+    const topic = typeof req.body?.topic === "string" ? req.body.topic.replace(/\s+/g, " ").trim().slice(0, MAX_TOPIC_CHARS) : "";
+    if (!topic) {
+      res.status(400).json({ error: "`topic` must be a non-empty string" });
+      return;
+    }
+    if (activeBackdrops >= MAX_BACKDROPS_AT_ONCE) {
+      res.status(429).json({ error: "Too many pictures being painted, try again in a moment" });
+      return;
+    }
+    activeBackdrops++;
+    const controller = new AbortController();
+    res.on("close", () => {
+      if (!res.writableFinished) controller.abort();
+    });
+    try {
+      const picture = await designBackdrop(topic, deps.image ?? geminiImage, controller.signal);
+      if (!picture) res.status(502).json({ error: "No picture came back" });
+      else res.set({ "Content-Type": picture.mime, "Cache-Control": "private, max-age=3600" }).send(picture.data);
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        console.error("Backdrop failed:", err instanceof Error ? err.message : err);
+        if (!res.headersSent) res.status(502).json({ error: "The picture could not be made" });
+      }
+    } finally {
+      activeBackdrops--;
     }
   });
 

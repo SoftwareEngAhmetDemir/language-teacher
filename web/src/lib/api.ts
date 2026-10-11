@@ -174,6 +174,18 @@ export interface GroupOptions {
   scenes: { id: string; title: string }[];
 }
 
+/** Asks the server to paint the wall behind the table for the student's own topic; resolves to the picture. */
+export async function fetchBackdrop(topic: string, signal?: AbortSignal): Promise<Blob> {
+  const res = await fetch("/api/group/backdrop", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-access-code": getCode() },
+    body: JSON.stringify({ topic }),
+    signal,
+  });
+  if (!res.ok) throw new Error(res.statusText);
+  return res.blob();
+}
+
 /** Asks the server to design the 3D room for the student's own topic. Returns the raw design, to be read with `styleFromServer`. */
 export async function fetchSceneStyle(topic: string, signal?: AbortSignal): Promise<unknown> {
   const res = await fetch("/api/group/scene-style", {

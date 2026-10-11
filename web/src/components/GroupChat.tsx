@@ -7,7 +7,8 @@ import { exportConversation } from "../lib/exportConversation";
 import { useGroupChat } from "../hooks/useGroupChat";
 import { useRecognizer } from "../hooks/useRecognizer";
 import { presetStyle, styleFromServer, type SceneStyle } from "../avatar/sceneStyle";
-import { fetchSceneStyle, type Config } from "../lib/api";
+import { fetchBackdrop, fetchSceneStyle, type Config } from "../lib/api";
+import { isEcho, wordCount } from "../lib/echo";
 import { loadPref, savePref } from "../lib/prefs";
 
 // three.js and the characters are only downloaded when a group scene is shown.
@@ -23,6 +24,8 @@ interface Props {
   studentName?: string;
   showScene: boolean;
   transcript: { show: boolean; toggle: () => void };
+  /** Called with true while the room is being prepared, so the rest of the page can wait too. */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 /** Name colours, one per seat. */
@@ -43,7 +46,7 @@ function loadMembers(valid: string[], min: number, max: number): string[] {
 }
 
 /** Group conversation: up to four characters around a table talk with the student and with each other. */
-export default function GroupChat({ config, language, level, speechTag, studentName, showScene, transcript }: Props) {
+export default function GroupChat({ config, language, level, speechTag, studentName, showScene, transcript, onBusyChange }: Props) {
   const { min, max, characters, scenes } = config.group;
   const validIds = useMemo(() => characters.map((c) => c.id), [characters]);
   const [members, setMembers] = useState(() => loadMembers(validIds, min, max));
@@ -51,6 +54,10 @@ export default function GroupChat({ config, language, level, speechTag, studentN
   const [topic, setTopic] = useState("");
   // The room designed for the student's own topic; null while a ready-made scene is used.
   const [customStyle, setCustomStyle] = useState<SceneStyle | null>(null);
+  // A painted picture of the wall for that topic (an object URL), which arrives a few seconds later.
+  const [backdrop, setBackdrop] = useState<string | null>(null);
+  // True from pressing Start with an own topic until its picture has arrived or failed.
+  const [painting, setPainting] = useState(false);
   const styling = useRef<AbortController | null>(null);
   const [voicesOn, setVoicesOn] = useState(() => loadPref("groupVoices", "on") === "on");
   const [input, setInput] = useState("");
@@ -84,11 +91,24 @@ export default function GroupChat({ config, language, level, speechTag, studentN
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [group.messages, interim]);
 
+  /** The last few things the characters said, which may still be coming out of the speakers. */
+  const recentSpeech = () => group.messages.filter((m) => m.speaker !== "user").slice(-3).map((m) => m.text);
+
   const recognizer = useRecognizer({
     lang: speechTag,
-    shouldListen: () => micOn && !running,
-    onInterim: setInterim,
+    shouldListen: () => micOn,
+    // The microphone stays open while the group talks, so the student can talk over them. The group's own voices come
+    // back through the speakers, so anything that is only an echo of the last lines is ignored.
+    onInterim: (text) => {
+      if (painting) return;
+      if (running && isEcho(text, recentSpeech())) return;
+      setInterim(text);
+      // As soon as the student really starts to speak, the group stops talking and listens.
+      if (running && wordCount(text) >= 2) group.interrupt();
+    },
     onFinal: (text) => {
+      if (painting) return;
+      if (running && isEcho(text, recentSpeech())) return;
       setInterim("");
       group.say(text);
     },
@@ -107,20 +127,13 @@ export default function GroupChat({ config, language, level, speechTag, studentN
     },
   });
 
-  // The microphone shuts while the group talks. Left open it would hear them through the speakers and take it for the
-  // student speaking, which cuts the group off in the middle of a line.
-  const { stop: stopListening } = recognizer;
-  useEffect(() => {
-    if (running) stopListening();
-  }, [running, stopListening]);
-
-  // Keep listening while the mic is on, pausing while the group talks so it doesn't hear itself.
+  // Keep listening while the mic is on.
   const { listening, start: startListening } = recognizer;
   useEffect(() => {
-    if (!micOn || !recognizer.supported || running || listening) return;
+    if (!micOn || !recognizer.supported || listening) return;
     const timer = setTimeout(startListening, 200);
     return () => clearTimeout(timer);
-  }, [micOn, recognizer.supported, running, listening, startListening]);
+  }, [micOn, recognizer.supported, listening, startListening]);
 
   function toggleMember(id: string) {
     const next = members.includes(id) ? members.filter((m) => m !== id) : members.length < max ? [...members, id] : members;
@@ -137,7 +150,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
     }
     setMicOn(true);
     setNotice(null);
-    if (!running) startListening();
+    startListening();
   }
 
   function stopConversation() {
@@ -161,6 +174,8 @@ export default function GroupChat({ config, language, level, speechTag, studentN
     group.start(sceneValue);
     styling.current?.abort();
     const own = topic.trim();
+    setBackdrop(null);
+    setPainting(false);
     if (!own) {
       setCustomStyle(null);
       return;
@@ -174,20 +189,39 @@ export default function GroupChat({ config, language, level, speechTag, studentN
       .catch(() => {
         // The room simply stays as it is; the conversation does not depend on it.
       });
+    setPainting(true);
+    fetchBackdrop(own, controller.signal)
+      .then((picture) => {
+        if (!controller.signal.aborted) setBackdrop(URL.createObjectURL(picture));
+      })
+      .catch(() => {})
+      .finally(() => {
+        // A newer start has its own picture to wait for.
+        if (styling.current === controller) setPainting(false);
+      });
   }
+  // Pictures are released when replaced or when the table is left.
+  useEffect(() => () => { if (backdrop) URL.revokeObjectURL(backdrop); }, [backdrop]);
   useEffect(() => () => styling.current?.abort(), []);
+  // While the room is prepared nothing else can be done, here or in the settings above.
+  useEffect(() => {
+    onBusyChange?.(painting);
+    return () => onBusyChange?.(false);
+  }, [painting, onBusyChange]);
   const roomStyle = useMemo(() => customStyle ?? presetStyle(sceneId), [customStyle, sceneId]);
   const last = group.messages[group.messages.length - 1];
   const statusText =
     group.status === "idle"
       ? "Choose who sits at the table, pick a scene and press Start."
       : running
-        ? "The group is talking. Press Stop, or type, to jump in."
+        ? micOn
+          ? "The group is talking. Speak, type or press Stop to jump in."
+          : "The group is talking. Press Stop, or type, to jump in."
         : "Your turn. Say something, or let them keep talking.";
 
   return (
     <>
-      <section className="group-setup" aria-label="Group setup">
+      <fieldset className="group-setup" aria-label="Group setup" disabled={painting}>
         <div className="group-members">
           <span className="group-label">At the table ({members.length} of {max})</span>
           <div className="chips">
@@ -248,11 +282,11 @@ export default function GroupChat({ config, language, level, speechTag, studentN
             {group.status === "idle" ? "Start scene" : "Restart scene"}
           </button>
         </div>
-      </section>
+      </fieldset>
 
       {showScene && (
         <Suspense fallback={<div className="avatar group-scene" />}>
-          <GroupScene seats={seats} style={roomStyle} analyserFor={group.analyserFor} speakingId={group.speakingId} thinkingId={group.thinkingId} addresseeId={group.addresseeId} />
+          <GroupScene seats={seats} style={roomStyle} backdrop={backdrop} busyText={painting ? "Painting the room for your topic…" : null} analyserFor={group.analyserFor} speakingId={group.speakingId} thinkingId={group.thinkingId} addresseeId={group.addresseeId} />
         </Suspense>
       )}
 
@@ -280,6 +314,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
         <ConversationControls
           canStop={running || micOn || listening || group.thinkingId !== null || group.speakingId !== null}
           canExport={group.messages.length > 0}
+          locked={painting}
           onStop={stopConversation}
           onExport={exportTranscript}
         />
@@ -312,7 +347,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
           ))}
         {transcript.show && interim && <div className="msg user interim">🎤 {interim}</div>}
         {micOn && !interim && (
-          <div className="mic-status">{listening ? "🎤 Listening…" : running ? "Microphone on · paused while the group talks" : "Microphone on"}</div>
+          <div className="mic-status">{listening ? "🎤 Listening…" : "Microphone on"}</div>
         )}
       </div>
 
@@ -320,6 +355,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
         <form
           onSubmit={(e) => {
             e.preventDefault();
+            if (painting) return;
             group.say(input);
             setInput("");
           }}
@@ -328,23 +364,23 @@ export default function GroupChat({ config, language, level, speechTag, studentN
             type="button"
             className={`mic${micOn ? " on" : ""}${listening ? " live" : ""}`}
             onClick={toggleMic}
-            disabled={!recognizer.supported}
+            disabled={!recognizer.supported || painting}
             aria-label={micOn ? "Turn microphone off" : "Turn microphone on"}
             title={micOn ? "Microphone on. Click to turn off" : "Click to turn the microphone on"}
           >
             🎤
           </button>
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={`Say something in ${language}…`} autoComplete="off" />
+          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={`Say something in ${language}…`} autoComplete="off" disabled={painting} />
           {running ? (
-            <button type="button" onClick={group.interrupt}>
+            <button type="button" onClick={group.interrupt} disabled={painting}>
               Stop
             </button>
           ) : group.status === "waiting" && !input.trim() ? (
-            <button type="button" onClick={group.keepTalking}>
+            <button type="button" onClick={group.keepTalking} disabled={painting}>
               Keep talking
             </button>
           ) : (
-            <button type="submit" disabled={!input.trim()}>
+            <button type="submit" disabled={!input.trim() || painting}>
               Send
             </button>
           )}

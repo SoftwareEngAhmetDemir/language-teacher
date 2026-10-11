@@ -60,6 +60,8 @@ export default function App() {
   const [interim, setInterim] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // The group scene is being prepared: the settings wait until it is ready.
+  const [sceneBusy, setSceneBusy] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const nextId = useRef(1);
@@ -309,7 +311,7 @@ export default function App() {
       )}
       {showTeacher && character.credit && <p className="credit">{character.credit}</p>}
 
-      <section className="settings">
+      <fieldset className="settings" disabled={sceneBusy}>
         <label>
           Language
           <select value={language} onChange={(e) => newConversation(() => { setLanguage(e.target.value); savePref("language", e.target.value); })}>
@@ -418,7 +420,7 @@ export default function App() {
             </label>
           </>
         )}
-      </section>
+      </fieldset>
 
       {groupMode ? (
         <GroupChat
@@ -429,6 +431,7 @@ export default function App() {
           studentName={studentName || undefined}
           showScene={showTeacher}
           transcript={{ show: showTranscript, toggle: toggleTranscript }}
+          onBusyChange={setSceneBusy}
         />
       ) : (
         <>

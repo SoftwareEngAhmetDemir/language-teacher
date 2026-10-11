@@ -57,6 +57,10 @@ select:focus-visible, input:focus-visible { outline: 0; border-color: var(--acce
 button { cursor: pointer; font-weight: 600; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); transition: filter 0.15s, background 0.15s, border-color 0.15s; }
 button:not(:disabled):hover { filter: brightness(0.96); }
 button:disabled { cursor: not-allowed; opacity: 0.5; }
+select:disabled, input:disabled { cursor: not-allowed; opacity: 0.55; }
+/* A fieldset only groups controls so they can be switched off together; it should look like the box it is in. */
+fieldset { min-width: 0; margin: 0; }
+fieldset:disabled { cursor: not-allowed; }
 
 /* Settings: one card, a tidy grid of fields */
 .settings {
@@ -190,6 +194,16 @@ button.primary { background: var(--accent); color: #fff; border: 0; border-radiu
 .entry.assistant .msg { border-radius: 4px 14px 14px 14px; }
 .entry.user .msg { border-radius: 14px 4px 14px 14px; }
 @media (max-width: 600px) { .group-scene { height: 300px; } }
+
+/* Shown over the 3D table while the wall for the student's topic is being painted. */
+.scene-loading {
+  position: absolute; top: 0.8rem; left: 50%; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.45rem 1rem 0.45rem 0.8rem; border-radius: 2rem; background: rgba(255, 255, 255, 0.94); color: #1b1b1b;
+  font-size: 0.85rem; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28); backdrop-filter: blur(6px);
+}
+.spinner { width: 1.05rem; height: 1.05rem; border-radius: 50%; border: 2.5px solid rgba(14, 124, 136, 0.25); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 
 /* Group scene: name labels over the 3D table, and a soft vignette. */
 .group-scene::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.28) 100%); }
