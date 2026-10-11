@@ -28,6 +28,12 @@ interface Props {
   onBusyChange?: (busy: boolean) => void;
 }
 
+/** The longest the room is waited for before the group starts in the standard one. */
+const PREPARE_TIMEOUT_MS = 35_000;
+
+/** How long the student has to be quiet before what they said is sent on, so a pause in the middle of a thought does not split it. */
+const SETTLE_MS = 900;
+
 /** Name colours, one per seat. */
 const COLORS = ["#1a73e8", "#e0457b", "#2e9e5b", "#d98324"];
 const DEFAULT_MEMBERS = ["professor", "luna", "rex"];
@@ -59,6 +65,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
   // True from pressing Start with an own topic until its picture has arrived or failed.
   const [painting, setPainting] = useState(false);
   const styling = useRef<AbortController | null>(null);
+  const [roomNote, setRoomNote] = useState<string | null>(null);
   const [voicesOn, setVoicesOn] = useState(() => loadPref("groupVoices", "on") === "on");
   const [input, setInput] = useState("");
   const [micOn, setMicOn] = useState(false);
@@ -94,6 +101,19 @@ export default function GroupChat({ config, language, level, speechTag, studentN
   /** The last few things the characters said, which may still be coming out of the speakers. */
   const recentSpeech = () => group.messages.filter((m) => m.speaker !== "user").slice(-3).map((m) => m.text);
 
+  // What the student has said by voice and not yet sent. People pause mid-thought and the browser ends a phrase at every
+  // pause, so each phrase is held for a moment: if another follows, they go to the group together as one message.
+  const heard = useRef<{ text: string; timer?: number }>({ text: "" });
+  const holdHeard = () => window.clearTimeout(heard.current.timer);
+  function sendHeard() {
+    holdHeard();
+    const text = heard.current.text.trim();
+    heard.current.text = "";
+    setInterim("");
+    if (text) group.say(text);
+  }
+  useEffect(() => holdHeard, []);
+
   const recognizer = useRecognizer({
     lang: speechTag,
     shouldListen: () => micOn,
@@ -103,14 +123,17 @@ export default function GroupChat({ config, language, level, speechTag, studentN
       if (painting) return;
       if (running && isEcho(text, recentSpeech())) return;
       setInterim(text);
+      holdHeard(); // Still speaking: whatever was held is not finished yet.
       // As soon as the student really starts to speak, the group stops talking and listens.
       if (running && wordCount(text) >= 2) group.interrupt();
     },
     onFinal: (text) => {
       if (painting) return;
       if (running && isEcho(text, recentSpeech())) return;
-      setInterim("");
-      group.say(text);
+      heard.current.text = `${heard.current.text} ${text}`.trim();
+      setInterim(heard.current.text); // Shown while it waits to see whether more follows.
+      holdHeard();
+      heard.current.timer = window.setTimeout(sendHeard, SETTLE_MS);
     },
     onError: (code) => {
       const problem: Record<string, string> = {
@@ -154,6 +177,11 @@ export default function GroupChat({ config, language, level, speechTag, studentN
   }
 
   function stopConversation() {
+    // Also cancels a scene that is still being prepared: the group will not start.
+    styling.current?.abort();
+    setPainting(false);
+    holdHeard();
+    heard.current.text = "";
     group.interrupt();
     setMicOn(false);
     recognizer.stop();
@@ -169,36 +197,41 @@ export default function GroupChat({ config, language, level, speechTag, studentN
 
   const sceneValue = topic.trim() || sceneId;
 
-  /** Starts the scene, and for the student's own topic has the room redecorated to suit it while the group begins talking. */
-  function startScene() {
-    group.start(sceneValue);
+  /**
+   * Starts the scene. For the student's own topic the room is prepared first, and the group only begins to talk once
+   * its picture has loaded, so they never speak in a room that is about to change. If the picture cannot be made the
+   * standard room is used and the group starts anyway.
+   */
+  async function startScene() {
     styling.current?.abort();
     const own = topic.trim();
     setBackdrop(null);
-    setPainting(false);
-    if (!own) {
+    setRoomNote(null);
+    group.unlock(); // Browsers only allow sound after a click, and the group starts later.
+    if (!own || !showScene) {
       setCustomStyle(null);
+      setPainting(false);
+      group.start(sceneValue);
       return;
     }
+
     const controller = new AbortController();
     styling.current = controller;
-    fetchSceneStyle(own, controller.signal)
-      .then((raw) => {
-        if (!controller.signal.aborted) setCustomStyle(styleFromServer(raw));
-      })
-      .catch(() => {
-        // The room simply stays as it is; the conversation does not depend on it.
-      });
+    group.reset();
     setPainting(true);
-    fetchBackdrop(own, controller.signal)
-      .then((picture) => {
-        if (!controller.signal.aborted) setBackdrop(URL.createObjectURL(picture));
-      })
-      .catch(() => {})
-      .finally(() => {
-        // A newer start has its own picture to wait for.
-        if (styling.current === controller) setPainting(false);
-      });
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(PREPARE_TIMEOUT_MS)]);
+    const [style, picture] = await Promise.allSettled([
+      fetchSceneStyle(own, signal),
+      // A picture that cannot be read as an image counts as a failure, like one that never arrives.
+      fetchBackdrop(own, signal).then(async (blob) => (await createImageBitmap(blob).then((bitmap) => bitmap.close()), blob)),
+    ]);
+    if (controller.signal.aborted) return; // Stopped, or another scene was started.
+
+    setCustomStyle(style.status === "fulfilled" ? styleFromServer(style.value) : null);
+    if (picture.status === "fulfilled") setBackdrop(URL.createObjectURL(picture.value));
+    else setRoomNote("The picture for your topic couldn't be made, so the standard room is used.");
+    setPainting(false);
+    group.start(sceneValue);
   }
   // Pictures are released when replaced or when the table is left.
   useEffect(() => () => { if (backdrop) URL.revokeObjectURL(backdrop); }, [backdrop]);
@@ -210,8 +243,9 @@ export default function GroupChat({ config, language, level, speechTag, studentN
   }, [painting, onBusyChange]);
   const roomStyle = useMemo(() => customStyle ?? presetStyle(sceneId), [customStyle, sceneId]);
   const last = group.messages[group.messages.length - 1];
-  const statusText =
-    group.status === "idle"
+  const statusText = painting
+    ? "Getting the room ready. The group will start talking in a moment."
+    : group.status === "idle"
       ? "Choose who sits at the table, pick a scene and press Start."
       : running
         ? micOn
@@ -286,7 +320,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
 
       {showScene && (
         <Suspense fallback={<div className="avatar group-scene" />}>
-          <GroupScene seats={seats} style={roomStyle} backdrop={backdrop} busyText={painting ? "Painting the room for your topic…" : null} analyserFor={group.analyserFor} speakingId={group.speakingId} thinkingId={group.thinkingId} addresseeId={group.addresseeId} />
+          <GroupScene seats={seats} style={roomStyle} backdrop={backdrop} busyText={painting ? "Painting the room for your topic. The group will start soon…" : null} analyserFor={group.analyserFor} speakingId={group.speakingId} thinkingId={group.thinkingId} addresseeId={group.addresseeId} />
         </Suspense>
       )}
 
@@ -302,6 +336,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
         </p>
       )}
       {notice && <p className="notice error">{notice}</p>}
+      {roomNote && <p className="notice">{roomNote}</p>}
       {!recognizer.supported && <p className="notice">Voice input isn't supported in this browser. Use Chrome, Edge or Safari, or type instead.</p>}
 
       {!transcript.show && last && (
@@ -312,7 +347,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
 
       <div className="toolbar">
         <ConversationControls
-          canStop={running || micOn || listening || group.thinkingId !== null || group.speakingId !== null}
+          canStop={painting || running || micOn || listening || group.thinkingId !== null || group.speakingId !== null}
           canExport={group.messages.length > 0}
           locked={painting}
           onStop={stopConversation}
@@ -356,6 +391,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
           onSubmit={(e) => {
             e.preventDefault();
             if (painting) return;
+            sendHeard(); // Anything just said by voice goes first, so the group gets it all in order.
             group.say(input);
             setInput("");
           }}

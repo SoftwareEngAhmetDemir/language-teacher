@@ -184,8 +184,8 @@ interface RoomOptions {
 /** Width of the wall picture, in scene units. A little more than the width the camera sees. */
 const BACKDROP_WIDTH = 19;
 
-/** Walls, floor, rug, window with curtains, shelves, pictures, plant and a pendant lamp. */
-export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, props, sky: skyView, floor, tableTop, tableRadius, rugRadius, centreZ, backdrop }: RoomOptions): () => void {
+/** Walls, floor, rug, window with curtains, shelves, pictures, plant and a lamp on the wall. */
+export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, props, sky: skyView, floor, rugRadius, centreZ, backdrop }: RoomOptions): () => void {
   const { solid, flat, own } = kit;
   const wallZ = -10;
   const context: PropContext = { kit, scene, palette, floor, wallZ };
@@ -305,20 +305,20 @@ export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, props, sky: s
     scene.add(leaves);
   }
 
-  // A pendant lamp over the table, with a faint cone of light.
-  const cord = solid(new THREE.CylinderGeometry(0.02, 0.02, 4, 6), 0x222222, { edge: 0, castShadow: false });
-  cord.position.set(0, 4.4, centreZ);
-  const shade = solid(new THREE.ConeGeometry(0.8, 0.55, 28, 1, true), palette.lamp, { edge: 1.04, castShadow: false });
+  // A lamp on the wall, out at the side so it never hangs in front of the table or the picture behind it.
+  const lampX = 6.2;
+  const lampY = floor + 4.9;
+  const plate = solid(new THREE.CylinderGeometry(0.16, 0.16, 0.06, 20), 0x3a2a20, { edge: 1.05, castShadow: false });
+  plate.rotation.x = Math.PI / 2;
+  plate.position.set(lampX, lampY, wallZ + 0.07);
+  const arm = solid(new THREE.BoxGeometry(0.07, 0.07, 0.5), 0x3a2a20, { edge: 1.1, castShadow: false });
+  arm.position.set(lampX, lampY, wallZ + 0.3);
+  const shade = solid(new THREE.SphereGeometry(0.4, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), palette.lamp, { edge: 1.04, castShadow: false });
   (shade.material as THREE.MeshToonMaterial).side = THREE.DoubleSide;
-  shade.position.set(0, 2.6, centreZ);
-  const bulb = flat(new THREE.SphereGeometry(0.2, 16, 12), new THREE.MeshBasicMaterial({ color: 0xfff2c0 }));
-  bulb.position.set(0, 2.4, centreZ);
-  const beam = flat(
-    new THREE.ConeGeometry(tableRadius * 0.55, 2.4 - tableTop, 40, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xffe2a8, transparent: true, opacity: 0.035, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }),
-  );
-  beam.position.set(0, (2.4 + tableTop) / 2, centreZ);
-  scene.add(cord, shade, bulb, beam);
+  shade.position.set(lampX, lampY - 0.15, wallZ + 0.55);
+  const bulb = flat(new THREE.SphereGeometry(0.13, 14, 10), new THREE.MeshBasicMaterial({ color: 0xfff2c0 }));
+  bulb.position.set(lampX, lampY - 0.2, wallZ + 0.55);
+  scene.add(plate, arm, shade, bulb);
 
   // A picture of the wall for the student's topic, painted by an image model. Until it arrives the painted wall stays.
   let cancelled = false;

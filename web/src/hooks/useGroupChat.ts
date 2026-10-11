@@ -222,7 +222,10 @@ export function useGroupChat(options: Options) {
     [],
   );
 
+  /** Lets the browser play audio. Call it from a click, before anything that has to wait. */
+  const unlock = useCallback(() => getPlayer().unlock(), [getPlayer]);
+
   const analyserFor = useCallback((id: string) => player.current?.analyserFor(id) ?? null, []);
 
-  return { messages, status, speakingId, thinkingId, addresseeId, voiceStatus, error, start, say, keepTalking, interrupt, reset, analyserFor };
+  return { messages, status, speakingId, thinkingId, addresseeId, voiceStatus, error, start, say, keepTalking, interrupt, reset, unlock, analyserFor };
 }

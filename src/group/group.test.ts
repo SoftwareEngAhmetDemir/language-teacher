@@ -4,7 +4,7 @@ import { detectAddressee, guard, mentions, pickNext, type FloorState } from "./c
 import { runRound } from "./graph.js";
 import type { GroupLLM } from "./llm.js";
 import { buildSystemInstruction, parseProfile, parseStudentName } from "../teacher.js";
-import { cleanLine, conductorContents, script, speakerContents, speakerInstruction } from "./prompts.js";
+import { cleanLine, conductorContents, script, speakerContents, speakerInstruction, trailingStudentLines } from "./prompts.js";
 import { describeError, isRateLimited, pcmFromWav, SpeechEngine } from "./tts.js";
 import type { Decision, GroupEvent, Line, RoundRequest } from "./types.js";
 import { parseRound } from "./validate.js";
@@ -268,6 +268,13 @@ describe("prompts", () => {
     assert.match(text, /Private note for this turn: answer Luna/);
     assert.match(text, /your turn, Rex/);
     assert.match(speakerContents(request(), "rex", ""), /just starting/);
+  });
+
+  it("tells the speaker to answer several things the student said in a row as one message", () => {
+    const req = request({ transcript: [{ speaker: "luna", text: "Do you like football?" }, { speaker: "user", text: "Yes" }, { speaker: "user", text: "I play on Sundays" }] });
+    assert.equal(trailingStudentLines(req.transcript), 2);
+    assert.match(speakerContents(req, "rex", ""), /2 things in a row[^]*one connected message/);
+    assert.doesNotMatch(speakerContents(request({ transcript: [{ speaker: "user", text: "Hola" }] }), "rex", ""), /in a row/);
   });
 
   it("counts the lines since the student last spoke for the conductor", () => {

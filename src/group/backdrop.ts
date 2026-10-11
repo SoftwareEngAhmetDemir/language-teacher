@@ -20,8 +20,9 @@ async function paint(model: string, topic: string, signal?: AbortSignal): Promis
   const response = await getClient().models.generateContent({
     model,
     contents:
-      `A flat, head-on cartoon illustration of the back wall of a room that suits this topic: ${JSON.stringify(topic)}. ` +
-      "Show the wall itself with a few simple things on it or against it that belong to the topic (for example posters, a window with a view, shelves, a board, plants or trees), " +
+      `A flat, head-on cartoon illustration of the back wall of a room, made to show this topic at a glance: ${JSON.stringify(topic)}. ` +
+      "The topic itself must be obvious: put one large feature in the middle of the wall that shows it (a big window onto the scene, a mural or a large poster, for example the sea and sand for a beach, a field and mountains for hiking, a blackboard for school), " +
+      "and a few smaller things around it that belong to the topic (shelves, objects, plants, pictures), " +
       "in soft friendly colours with clean shapes and thin outlines. The wall fills the whole picture edge to edge. " +
       "The bottom edge is where the wall meets the floor, with a skirting board; show no floor. " +
       "Leave the lower third fairly empty because a table will stand in front of it. No people, no animals, no text, no letters. " +

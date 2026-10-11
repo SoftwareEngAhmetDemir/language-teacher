@@ -47,11 +47,19 @@ Rules for your turn:
 - Write ONLY the words you say out loud in this turn: one or two short sentences. No name label, no stage directions, no markdown, no emojis, no lists.
 - Talk like a real person in a group: react to what was just said, build on it, agree or disagree lightly, joke, or ask someone a question by name. Do not repeat or summarise what others said.
 - Speak only for yourself, never for anyone else. Do not say you are an AI.
-- Include the student: sometimes ask them a simple question, and always respond to what the student said if they spoke last.${req.studentName ? `\n- Call the student by their name, ${req.studentName}, now and then, naturally, for example when you speak to them directly. Not in every line.` : ""}
+- Include the student: sometimes ask them a simple question, and always respond to what the student said if they spoke last.
+- Listen like a person does. If the student says several things in a row, or comes back to something they said earlier, connect them: answer the whole of it together and show you remember the earlier part (for example "You said you like football, and now you say you play on Sundays, so..."). Do not answer only the last sentence.${req.studentName ? `\n- Call the student by their name, ${req.studentName}, now and then, naturally, for example when you speak to them directly. Not in every line.` : ""}
 - When you speak to one person, use their name so everyone knows who you mean.
 - Take turns like people do: say your line once the last speaker has finished, and answer what was actually said to you. If a question was put to someone else, leave it to them instead of answering for them, unless they have already answered or you are naturally joining in.
 - If the student makes a real mistake, say the correct form naturally, in passing, instead of lecturing. Do not correct more than one thing.
 - Keep to the scene, but let the conversation flow naturally.`;
+}
+
+/** How many lines the student said in a row at the end of the transcript, with nobody answering in between. */
+export function trailingStudentLines(transcript: Line[]): number {
+  let n = 0;
+  for (let i = transcript.length - 1; i >= 0 && transcript[i].speaker === "user"; i--) n++;
+  return n;
 }
 
 /** The turn itself: the script so far and what to do now. */
@@ -60,7 +68,12 @@ export function speakerContents(req: RoundRequest, id: string, direction: string
   const history = req.transcript.length
     ? `The conversation so far:\n${script(req.transcript.slice(-SPEAKER_CONTEXT), req.studentName)}\n\n`
     : "The conversation is just starting.\n\n";
-  const note = direction ? `Private note for this turn: ${direction}\n` : "";
+  const several = trailingStudentLines(req.transcript);
+  const together =
+    several > 1
+      ? `The student has just said ${several} things in a row (the last ${several} lines above). Treat them as one connected message: answer all of it together and link the parts, for example how the later part follows from or changes the earlier one.\n`
+      : "";
+  const note = `${together}${direction ? `Private note for this turn: ${direction}\n` : ""}`;
   return `${history}${note}It is your turn, ${me}. Say your line now.`;
 }
 
@@ -83,7 +96,7 @@ Decide who speaks next. Reply with JSON: {"next": "<character id or user>", "to"
 The character ids are: ${req.participants.join(", ")}. Use "user" to hand the floor to the student. "to" is a character id, "user" (the student) or "all" (the whole table). People mostly answer whoever spoke just before them, so "to" is usually that person.
 
 Rules:
-- If the student spoke last, someone must respond now. Choose whoever is best placed: a person addressed by name, or the group's teacher.
+- If the student spoke last, someone must respond now. Choose whoever is best placed: a person addressed by name, or the group's teacher. If the student said several things in a row, the direction should tell them to answer everything together.
 - If the last line asks the student a question, or invites them to speak, choose "user".
 - Otherwise let the characters talk to each other for two or three lines so it feels like a real group, then hand over to the student.
 - A question put to one person is answered by that person, so choose them. Do not let someone else answer it for them, and do not let two people go on talking about the same point at once.
