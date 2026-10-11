@@ -34,6 +34,9 @@ const PREPARE_TIMEOUT_MS = 35_000;
 /** How long the student has to be quiet before what they said is sent on, so a pause in the middle of a thought does not split it. */
 const SETTLE_MS = 900;
 
+/** How long after the group stops its own voices may still be arriving through the microphone. */
+const ECHO_TAIL_MS = 3000;
+
 /** Name colours, one per seat. */
 const COLORS = ["#1a73e8", "#e0457b", "#2e9e5b", "#d98324"];
 const DEFAULT_MEMBERS = ["professor", "luna", "rex"];
@@ -99,7 +102,25 @@ export default function GroupChat({ config, language, level, speechTag, studentN
   }, [group.messages, interim]);
 
   /** The last few things the characters said, which may still be coming out of the speakers. */
-  const recentSpeech = () => group.messages.filter((m) => m.speaker !== "user").slice(-3).map((m) => m.text);
+  const recentSpeech = () => group.messages.filter((m) => m.speaker !== "user").slice(-4).map((m) => m.text);
+
+  // When the group last stopped making sound. The browser delivers what the microphone heard a moment late, so the
+  // group's own words can arrive just after they have finished.
+  const soundEnded = useRef(0);
+  const makingSound = running || group.speakingId !== null;
+  useEffect(() => {
+    if (!makingSound) return;
+    return () => {
+      soundEnded.current = Date.now();
+    };
+  }, [makingSound]);
+  /** Whether this is probably the group coming back through the microphone, not the student. */
+  const isGroupEcho = (text: string) => {
+    if (makingSound) return isEcho(text, recentSpeech());
+    // Just after they stop, a short answer is the student's (a one-word reply to a question), but a longer run of words
+    // that matches what was said is the tail of the group's own voices.
+    return Date.now() - soundEnded.current < ECHO_TAIL_MS && wordCount(text) >= 3 && isEcho(text, recentSpeech());
+  };
 
   // What the student has said by voice and not yet sent. People pause mid-thought and the browser ends a phrase at every
   // pause, so each phrase is held for a moment: if another follows, they go to the group together as one message.
@@ -120,16 +141,14 @@ export default function GroupChat({ config, language, level, speechTag, studentN
     // The microphone stays open while the group talks, so the student can talk over them. The group's own voices come
     // back through the speakers, so anything that is only an echo of the last lines is ignored.
     onInterim: (text) => {
-      if (painting) return;
-      if (running && isEcho(text, recentSpeech())) return;
+      if (painting || isGroupEcho(text)) return;
       setInterim(text);
       holdHeard(); // Still speaking: whatever was held is not finished yet.
       // As soon as the student really starts to speak, the group stops talking and listens.
       if (running && wordCount(text) >= 2) group.interrupt();
     },
     onFinal: (text) => {
-      if (painting) return;
-      if (running && isEcho(text, recentSpeech())) return;
+      if (painting || isGroupEcho(text)) return;
       heard.current.text = `${heard.current.text} ${text}`.trim();
       setInterim(heard.current.text); // Shown while it waits to see whether more follows.
       holdHeard();
