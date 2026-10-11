@@ -6,7 +6,8 @@ import ConversationControls from "./ConversationControls";
 import { exportConversation } from "../lib/exportConversation";
 import { useGroupChat } from "../hooks/useGroupChat";
 import { useRecognizer } from "../hooks/useRecognizer";
-import type { Config } from "../lib/api";
+import { presetStyle, styleFromServer, type SceneStyle } from "../avatar/sceneStyle";
+import { fetchSceneStyle, type Config } from "../lib/api";
 import { loadPref, savePref } from "../lib/prefs";
 
 // three.js and the characters are only downloaded when a group scene is shown.
@@ -48,6 +49,9 @@ export default function GroupChat({ config, language, level, speechTag, studentN
   const [members, setMembers] = useState(() => loadMembers(validIds, min, max));
   const [sceneId, setSceneId] = useState(() => loadPref("groupScene", scenes[0].id));
   const [topic, setTopic] = useState("");
+  // The room designed for the student's own topic; null while a ready-made scene is used.
+  const [customStyle, setCustomStyle] = useState<SceneStyle | null>(null);
+  const styling = useRef<AbortController | null>(null);
   const [voicesOn, setVoicesOn] = useState(() => loadPref("groupVoices", "on") === "on");
   const [input, setInput] = useState("");
   const [micOn, setMicOn] = useState(false);
@@ -103,6 +107,13 @@ export default function GroupChat({ config, language, level, speechTag, studentN
     },
   });
 
+  // The microphone shuts while the group talks. Left open it would hear them through the speakers and take it for the
+  // student speaking, which cuts the group off in the middle of a line.
+  const { stop: stopListening } = recognizer;
+  useEffect(() => {
+    if (running) stopListening();
+  }, [running, stopListening]);
+
   // Keep listening while the mic is on, pausing while the group talks so it doesn't hear itself.
   const { listening, start: startListening } = recognizer;
   useEffect(() => {
@@ -144,6 +155,28 @@ export default function GroupChat({ config, language, level, speechTag, studentN
   }
 
   const sceneValue = topic.trim() || sceneId;
+
+  /** Starts the scene, and for the student's own topic has the room redecorated to suit it while the group begins talking. */
+  function startScene() {
+    group.start(sceneValue);
+    styling.current?.abort();
+    const own = topic.trim();
+    if (!own) {
+      setCustomStyle(null);
+      return;
+    }
+    const controller = new AbortController();
+    styling.current = controller;
+    fetchSceneStyle(own, controller.signal)
+      .then((raw) => {
+        if (!controller.signal.aborted) setCustomStyle(styleFromServer(raw));
+      })
+      .catch(() => {
+        // The room simply stays as it is; the conversation does not depend on it.
+      });
+  }
+  useEffect(() => () => styling.current?.abort(), []);
+  const roomStyle = useMemo(() => customStyle ?? presetStyle(sceneId), [customStyle, sceneId]);
   const last = group.messages[group.messages.length - 1];
   const statusText =
     group.status === "idle"
@@ -211,7 +244,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
             />
             Voices
           </label>
-          <button type="button" className="primary" onClick={() => group.start(sceneValue)}>
+          <button type="button" className="primary" onClick={startScene}>
             {group.status === "idle" ? "Start scene" : "Restart scene"}
           </button>
         </div>
@@ -219,7 +252,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
 
       {showScene && (
         <Suspense fallback={<div className="avatar group-scene" />}>
-          <GroupScene seats={seats} sceneId={sceneId} analyserFor={group.analyserFor} speakingId={group.speakingId} thinkingId={group.thinkingId} addresseeId={group.addresseeId} />
+          <GroupScene seats={seats} style={roomStyle} analyserFor={group.analyserFor} speakingId={group.speakingId} thinkingId={group.thinkingId} addresseeId={group.addresseeId} />
         </Suspense>
       )}
 

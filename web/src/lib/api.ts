@@ -173,3 +173,15 @@ export interface GroupOptions {
   characters: { id: string; name: string; role: string }[];
   scenes: { id: string; title: string }[];
 }
+
+/** Asks the server to design the 3D room for the student's own topic. Returns the raw design, to be read with `styleFromServer`. */
+export async function fetchSceneStyle(topic: string, signal?: AbortSignal): Promise<unknown> {
+  const res = await fetch("/api/group/scene-style", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-access-code": getCode() },
+    body: JSON.stringify({ topic }),
+    signal,
+  });
+  if (!res.ok) throw new Error(res.statusText);
+  return res.json();
+}

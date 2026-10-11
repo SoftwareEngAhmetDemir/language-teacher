@@ -5,6 +5,14 @@ const SAMPLE_RATE = 24000;
 /** If a character's voice hasn't started within this long, the browser's voice speaks the line instead. */
 const FIRST_AUDIO_TIMEOUT_MS = 8000;
 
+/** A person who has finished speaking leaves a short silence before the next one starts, a little longer after a question. */
+function turnGap(text: string): number {
+  const question = /[?？]["')\]]*\s*$/.test(text.trim());
+  return (question ? 450 : 250) + Math.random() * 250;
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
 /** One line waiting to be heard. */
 export interface SpokenLine {
   id: number;
@@ -81,6 +89,8 @@ export class GroupPlayer {
   /** Lines queued, loading or playing. */
   private inFlight = 0;
   private pumping = false;
+  /** When the last line ended and what it said, so the next speaker waits a natural moment. */
+  private lastEnd: { at: number; text: string } | null = null;
   /** The browser voice each character uses when their own voice isn't available, so they don't all sound alike. */
   private assigned = new Map<string, SpeechSynthesisVoice>();
 
@@ -129,6 +139,7 @@ export class GroupPlayer {
     this.current?.stop();
     if ("speechSynthesis" in window) speechSynthesis.cancel();
     this.inFlight = 0;
+    this.lastEnd = null;
     this.resolveIdle();
     this.resolveBacklog();
   }
@@ -222,8 +233,12 @@ export class GroupPlayer {
         await item.clip.ready;
         this.loading = null;
         if (!item.abort.signal.aborted) {
+          await this.waitForTurn();
+        }
+        if (!item.abort.signal.aborted) {
           if (item.clip.segments.length) await this.playClip(item);
           else await this.playFallback(item, item.clip.failure);
+          this.lastEnd = { at: performance.now(), text: item.line.text };
         }
         this.inFlight = Math.max(0, this.inFlight - 1);
         this.resolveBacklog();
@@ -232,6 +247,20 @@ export class GroupPlayer {
       this.pumping = false;
       this.current = null;
       this.resolveIdle();
+    }
+  }
+
+  /**
+   * Waits until the previous speaker has really finished (a browser voice can still be talking after its line was
+   * counted as over) and a natural moment of silence has passed, so people never talk over each other.
+   */
+  private async waitForTurn(): Promise<void> {
+    if ("speechSynthesis" in window) {
+      for (let waited = 0; speechSynthesis.speaking && waited < 4000; waited += 100) await sleep(100);
+    }
+    if (this.lastEnd) {
+      const wait = this.lastEnd.at + turnGap(this.lastEnd.text) - performance.now();
+      if (wait > 0) await sleep(wait);
     }
   }
 

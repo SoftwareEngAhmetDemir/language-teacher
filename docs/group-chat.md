@@ -78,6 +78,8 @@ The student can jump in at any time by typing, pressing **Stop**, or saying some
 
 `POST /api/speak` `{ "text", "character" }` → `application/octet-stream` (16-bit mono PCM, 24 kHz; `X-Sample-Rate` header).
 
+`POST /api/group/scene-style` `{ "topic" }` → the room for the student's own topic: `{ palette, props, sky }`. A model picks four colours, a few props (map or tv; up to two of guitar, ball, globe, suitcase, easel; flowers, food or laptop for the table; bookcase, plant) and the sky at the window (day, sunset, night). `src/group/sceneStyle.ts` checks all of it, keeps the walls light, works out the rest of the palette, and falls back to keyword rules if the model fails. The browser draws the props (`web/src/avatar/props.ts`) when the scene starts with an own topic; ready-made scenes have their own set in `web/src/avatar/sceneStyle.ts`.
+
 `GET /api/config` also lists the characters, scenes and the 2 to 4 limit for the UI.
 
 **Who a line is for** is decided on the server (`detectAddressee` in `conductor.ts`): whoever is called by name first (another character, or the student by their own name), else the person the conductor intended (it returns a `to` field), else the person who spoke just before. The speaker is told who to talk to, so they use that person's name.

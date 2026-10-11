@@ -120,7 +120,11 @@ export default function App() {
   }, [messages, voice.messages, interim]);
 
   // While the mic is on, keep listening, pausing only while the teacher is talking so it doesn't hear itself.
-  const { listening, start: startListening } = recognizer;
+  const { listening, start: startListening, stop: stopListening } = recognizer;
+  useEffect(() => {
+    // Left open while the teacher speaks, the mic would hear the replies and answer for the student.
+    if (busy || speaker.speaking) stopListening();
+  }, [busy, speaker.speaking, stopListening]);
   useEffect(() => {
     if (!micOn || !recognizer.supported || busy || speaker.speaking || listening) return;
     const timer = setTimeout(startListening, 200);

@@ -39,6 +39,7 @@ before(async () => {
   app.use(express.json());
   registerGroupRoutes(app, {
     llm,
+    design: async () => null,
     speak: async function* (text) {
       if (text === "fail") throw new Error("no voice today");
       yield Buffer.from(new Int16Array([1, 2]).buffer);
@@ -120,5 +121,23 @@ describe("POST /api/speak", () => {
     assert.equal((await post({ text: "  ", character: "luna" })).status, 400);
     assert.equal((await post({ text: "x".repeat(601), character: "luna" })).status, 400);
     assert.equal((await post({ text: "hi", character: "luna" }, { "Content-Type": "application/json" })).status, 401);
+  });
+});
+
+describe("POST /api/group/scene-style", () => {
+  const post = (payload: unknown, h: Record<string, string> = headers) => fetch(`${base}/api/group/scene-style`, { method: "POST", headers: h, body: JSON.stringify(payload) });
+
+  it("designs a room that suits the topic", async () => {
+    const res = await post({ topic: "  my love of football " });
+    assert.equal(res.status, 200);
+    const style = (await res.json()) as { props: string[]; sky: string; palette: Record<string, string> };
+    assert.ok(style.props.includes("ball"));
+    assert.match(style.palette.wallBottom, /^#[0-9a-f]{6}$/);
+  });
+
+  it("needs a topic and the access code", async () => {
+    assert.equal((await post({ topic: "   " })).status, 400);
+    assert.equal((await post({})).status, 400);
+    assert.equal((await post({ topic: "football" }, { "Content-Type": "application/json" })).status, 401);
   });
 });

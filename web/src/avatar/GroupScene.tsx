@@ -5,8 +5,9 @@ import type { Character } from "./characters";
 import { createCartoonRig } from "./cartoonRig";
 import { MouthDriver } from "./lipSync";
 import type { Rig } from "./rig";
-import { buildRoom, buildTable, paletteFor } from "./room";
+import { buildRoom, buildTable } from "./room";
 import { createKit } from "./sceneKit";
+import type { SceneStyle } from "./sceneStyle";
 import { PERSON_SCALE, seatLayout } from "./seating";
 import { loadVrmRig } from "./vrmRig";
 
@@ -21,8 +22,8 @@ export interface Seat {
 
 interface Props {
   seats: Seat[];
-  /** Picks the room's colours and decoration. */
-  sceneId?: string;
+  /** The room's colours, what stands in it and the view from its window. */
+  style: SceneStyle;
   /** The analyser carrying this character's voice right now, if its audio is playing through the page. */
   analyserFor: (id: string) => AnalyserNode | null;
   /** Who is talking (their lips move) and who is about to talk (their label shows "…"). */
@@ -69,12 +70,13 @@ interface Placed {
 }
 
 /** Up to five teachers around a table in a furnished room. Each moves its mouth with its own voice and looks at whoever is talking. */
-export default function GroupScene({ seats, sceneId, analyserFor, speakingId, thinkingId, addresseeId }: Props) {
+export default function GroupScene({ seats, style, analyserFor, speakingId, thinkingId, addresseeId }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef<(HTMLDivElement | null)[]>([]);
   const latest = useRef({ analyserFor, speakingId, thinkingId, addresseeId });
   const [failed, setFailed] = useState(false);
   const seatKey = seats.map((s) => s.id).join(",");
+  const styleKey = JSON.stringify(style);
 
   useEffect(() => {
     latest.current = { analyserFor, speakingId, thinkingId, addresseeId };
@@ -93,7 +95,7 @@ export default function GroupScene({ seats, sceneId, analyserFor, speakingId, th
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
 
-    const palette = paletteFor(sceneId);
+    const { palette, props, sky } = style;
     const layout = seatLayout(seats.length);
     // People sit just outside the table's edge, leaning in to rest their arms on it, not inside it.
     const tableRadius = layout.radius - 0.45;
@@ -104,7 +106,7 @@ export default function GroupScene({ seats, sceneId, analyserFor, speakingId, th
     const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 80);
 
     // Light: soft sky and ground light, a key light that casts shadows, and a warm glow from the lamp.
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xb59a7a, 1.1));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xb59a7a, sky === "night" ? 0.85 : 1.1));
     const key = new THREE.DirectionalLight(0xffffff, 2.1);
     key.position.set(4, 8, 7);
     key.castShadow = true;
@@ -118,8 +120,8 @@ export default function GroupScene({ seats, sceneId, analyserFor, speakingId, th
     scene.add(glow);
 
     const kit = createKit();
-    buildRoom(kit, scene, { palette, floor: FLOOR, tableTop: TABLE_TOP, tableRadius, rugRadius: layout.radius + 1.4, centreZ: CENTRE_Z });
-    buildTable(kit, scene, { palette, floor: FLOOR, tableTop: TABLE_TOP, radius: tableRadius, centreZ: CENTRE_Z });
+    buildRoom(kit, scene, { palette, props, sky, floor: FLOOR, tableTop: TABLE_TOP, tableRadius, rugRadius: layout.radius + 1.4, centreZ: CENTRE_Z });
+    buildTable(kit, scene, { palette, props, floor: FLOOR, tableTop: TABLE_TOP, radius: tableRadius, centreZ: CENTRE_Z });
 
     const placed: Placed[] = seats.map((seat, i) => {
       const angle = layout.angles[i];
@@ -294,7 +296,7 @@ export default function GroupScene({ seats, sceneId, analyserFor, speakingId, th
     };
     // Rebuilt when who is at the table, or the scene, changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seatKey, sceneId]);
+  }, [seatKey, styleKey]);
 
   return (
     <div className="avatar group-scene">

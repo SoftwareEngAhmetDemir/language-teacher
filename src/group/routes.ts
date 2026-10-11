@@ -3,6 +3,7 @@ import { codeOk } from "../access.js";
 import { isCharacterId } from "../characters.js";
 import { runRound } from "./graph.js";
 import { geminiGroupLLM, type GroupLLM } from "./llm.js";
+import { designScene, geminiDesign, type DesignModel } from "./sceneStyle.js";
 import { describeError, speakStream, TTS_SAMPLE_RATE } from "./tts.js";
 import type { GroupEvent } from "./types.js";
 import { parseRound } from "./validate.js";
@@ -11,6 +12,7 @@ const MAX_TURNS_PER_ROUND = Number(process.env.GROUP_MAX_TURNS ?? 4);
 const MAX_ROUNDS_AT_ONCE = Number(process.env.GROUP_MAX_ROUNDS ?? 6);
 const MAX_SPEECH_AT_ONCE = Number(process.env.GROUP_MAX_SPEECH ?? 8);
 const MAX_SPEECH_CHARS = 600;
+const MAX_TOPIC_CHARS = 120;
 /** The first line of a round is picked by rules, not by a model call, so the group starts talking sooner. */
 const FAST_START = process.env.GROUP_FAST_START !== "false";
 /** Set GROUP_LOG_TIMING=1 to log how long each round and each voice takes to start. */
@@ -24,6 +26,8 @@ export interface GroupDeps {
   llm: GroupLLM;
   /** Speaks a line, yielding raw PCM audio as it is generated. */
   speak: (text: string, character: string) => AsyncIterable<Buffer>;
+  /** Chooses the room's colours and props for a topic. */
+  design?: DesignModel;
 }
 
 const defaultDeps: GroupDeps = { llm: geminiGroupLLM, speak: speakStream };
@@ -82,6 +86,28 @@ export function registerGroupRoutes(app: Express, deps: GroupDeps = defaultDeps)
     } finally {
       activeRounds--;
       res.end();
+    }
+  });
+
+  /** Designs the 3D room for the student's own topic: colours, props and the view from the window. */
+  app.post("/api/group/scene-style", async (req, res) => {
+    if (!codeOk(req.get("x-access-code"))) {
+      res.status(401).json({ error: "Access code required" });
+      return;
+    }
+    const topic = typeof req.body?.topic === "string" ? req.body.topic.replace(/\s+/g, " ").trim().slice(0, MAX_TOPIC_CHARS) : "";
+    if (!topic) {
+      res.status(400).json({ error: "`topic` must be a non-empty string" });
+      return;
+    }
+    const controller = new AbortController();
+    res.on("close", () => {
+      if (!res.writableFinished) controller.abort();
+    });
+    try {
+      res.json(await designScene(topic, deps.design ?? geminiDesign, controller.signal));
+    } catch {
+      if (!res.headersSent) res.status(499).end();
     }
   });
 

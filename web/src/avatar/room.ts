@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { buildCentrepiece, buildFloorProp, buildWallProp, CENTREPIECES, FLOOR_PROPS, WALL_PROPS, type PropContext } from "./props";
 import type { Kit } from "./sceneKit";
+import type { PropId, Sky } from "./sceneStyle";
 
 /** Colours of a room. Each conversation scene has its own. */
 export interface Palette {
@@ -164,6 +166,10 @@ function seeded(seed: number): () => number {
 
 interface RoomOptions {
   palette: Palette;
+  /** What stands in the room. */
+  props: PropId[];
+  /** What is seen through the window. */
+  sky: Sky;
   /** Heights, measured from the middle of a seated head. */
   floor: number;
   tableTop: number;
@@ -174,9 +180,10 @@ interface RoomOptions {
 }
 
 /** Walls, floor, rug, window with curtains, shelves, pictures, plant and a pendant lamp. */
-export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, floor, tableTop, tableRadius, rugRadius, centreZ }: RoomOptions): void {
+export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, props, sky: skyView, floor, tableTop, tableRadius, rugRadius, centreZ }: RoomOptions): void {
   const { solid, flat, own } = kit;
   const wallZ = -10;
+  const context: PropContext = { kit, scene, palette, floor, wallZ };
 
   // Wall and floor.
   const wall = flat(new THREE.PlaneGeometry(64, 18), new THREE.MeshBasicMaterial({ map: own(wallTexture(palette)) }));
@@ -206,18 +213,31 @@ export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, floor, tableT
   const windowY = floor + 5.4;
   const frame = solid(new THREE.BoxGeometry(3.5, 3.1, 0.2), 0xffffff, { edge: 1.01, castShadow: false });
   frame.position.set(windowX, windowY, wallZ + 0.1);
-  const sky = flat(new THREE.PlaneGeometry(3.1, 2.7), new THREE.MeshBasicMaterial({ color: 0xcfeaff }));
+  const sky = flat(new THREE.PlaneGeometry(3.1, 2.7), new THREE.MeshBasicMaterial({ color: { day: 0xcfeaff, sunset: 0xf4a261, night: 0x1b2a4e }[skyView] }));
   sky.position.set(windowX, windowY, wallZ + 0.22);
-  const cloud = flat(new THREE.CircleGeometry(0.5, 20), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-  cloud.scale.set(1.6, 0.6, 1);
-  cloud.position.set(windowX - 0.5, windowY + 0.5, wallZ + 0.23);
+  // The view: clouds by day, a low sun at sunset, a moon and stars at night.
+  const view: THREE.Mesh[] = [];
+  const dot = (radius: number, color: number, dx: number, dy: number, scaleX = 1, scaleY = 1) => {
+    const mesh = flat(new THREE.CircleGeometry(radius, 20), new THREE.MeshBasicMaterial({ color }));
+    mesh.scale.set(scaleX, scaleY, 1);
+    mesh.position.set(windowX + dx, windowY + dy, wallZ + 0.23);
+    view.push(mesh);
+  };
+  if (skyView === "day") dot(0.5, 0xffffff, -0.5, 0.5, 1.6, 0.6);
+  else if (skyView === "sunset") {
+    dot(0.45, 0xffe08a, 0.5, -0.7);
+    dot(0.5, 0xffd6c0, -0.6, 0.55, 1.6, 0.5);
+  } else {
+    dot(0.28, 0xfff3c4, 0.6, 0.5);
+    for (const [dx, dy] of [[-0.8, 0.7], [-0.3, 0.2], [0.1, 0.9], [-0.9, -0.4], [0.7, -0.3]]) dot(0.035, 0xffffff, dx, dy);
+  }
   const bar = solid(new THREE.BoxGeometry(0.08, 2.7, 0.08), 0xffffff, { edge: 0, castShadow: false });
   bar.position.set(windowX, windowY, wallZ + 0.26);
   const crossbar = solid(new THREE.BoxGeometry(3.1, 0.08, 0.08), 0xffffff, { edge: 0, castShadow: false });
   crossbar.position.set(windowX, windowY, wallZ + 0.26);
   const sill = solid(new THREE.BoxGeometry(3.9, 0.14, 0.4), 0xffffff, { edge: 1.02, castShadow: false });
   sill.position.set(windowX, windowY - 1.62, wallZ + 0.25);
-  scene.add(frame, sky, cloud, bar, crossbar, sill);
+  scene.add(frame, sky, ...view, bar, crossbar, sill);
   for (const side of [-1, 1]) {
     const curtain = solid(new RoundedBoxGeometry(0.75, 3.7, 0.3, 3, 0.14), palette.curtain, { edge: 1.03, castShadow: false });
     curtain.position.set(windowX + side * 2.05, windowY - 0.15, wallZ + 0.35);
@@ -228,8 +248,10 @@ export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, floor, tableT
   rod.position.set(windowX, windowY + 1.85, wallZ + 0.4);
   scene.add(rod);
 
-  // Two pictures.
-  for (const [x, w, h, kind] of [[3.3, 2.1, 1.6, "landscape"], [5.5, 1.3, 1.7, "abstract"]] as const) {
+  // Two pictures, or a map or a television in their place.
+  const wallProp = props.find((p): p is "map" | "tv" => WALL_PROPS.includes(p));
+  if (wallProp) buildWallProp(wallProp, 4.4, context);
+  for (const [x, w, h, kind] of wallProp ? [] : ([[3.3, 2.1, 1.6, "landscape"], [5.5, 1.3, 1.7, "abstract"]] as const)) {
     const picture = solid(new THREE.BoxGeometry(w + 0.24, h + 0.24, 0.12), 0x3a2a20, { edge: 1.01, castShadow: false });
     picture.position.set(x, floor + 5.6, wallZ + 0.1);
     const art = flat(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: own(artTexture(kind, palette)) }));
@@ -237,15 +259,18 @@ export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, floor, tableT
     scene.add(picture, art);
   }
 
+  // Whatever stands on the floor, at the two free places by the wall.
+  props.filter((p): p is "guitar" | "ball" | "globe" | "suitcase" | "easel" => FLOOR_PROPS.includes(p)).slice(0, 2).forEach((id, i) => buildFloorProp(id, i === 0 ? -5.9 : 5.3, -8.4, context));
+
   // A bookcase full of books.
   const caseX = -8.3;
   const caseY = floor + 3.2;
   const shelf = solid(new THREE.BoxGeometry(2.6, 6.2, 0.7), 0x6f4a2e, { edge: 1.01, castShadow: false });
   shelf.position.set(caseX, caseY, wallZ + 0.4);
-  scene.add(shelf);
+  if (props.includes("bookcase")) scene.add(shelf);
   const random = seeded(7);
   const bookColors = [0xc0503a, 0x4aa3df, 0xf2c230, 0x6aa84f, 0x8e44ad, 0xe8e0d0, palette.lamp, palette.curtain];
-  for (let row = 0; row < 4; row++) {
+  for (let row = 0; row < (props.includes("bookcase") ? 4 : 0); row++) {
     const shelfY = caseY - 2.6 + row * 1.55;
     const board = solid(new THREE.BoxGeometry(2.4, 0.1, 0.62), 0x8a6240, { edge: 0, castShadow: false });
     board.position.set(caseX, shelfY, wallZ + 0.45);
@@ -264,8 +289,8 @@ export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, floor, tableT
   // A plant by the right wall.
   const pot = solid(new THREE.CylinderGeometry(0.55, 0.4, 0.8, 20), 0xc0503a);
   pot.position.set(7.4, floor + 0.4, -7.5);
-  scene.add(pot);
-  for (const [dx, dy, r] of [[0, 1.05, 0.7], [-0.5, 1.5, 0.5], [0.5, 1.55, 0.52], [0, 2.0, 0.45], [-0.25, 1.1, 0.5]] as const) {
+  if (props.includes("plant")) scene.add(pot);
+  for (const [dx, dy, r] of props.includes("plant") ? ([[0, 1.05, 0.7], [-0.5, 1.5, 0.5], [0.5, 1.55, 0.52], [0, 2.0, 0.45], [-0.25, 1.1, 0.5]] as const) : []) {
     const leaves = solid(new THREE.SphereGeometry(r, 18, 14), palette.decor, { edge: 1.05 });
     leaves.position.set(7.4 + dx, floor + dy, -7.5);
     scene.add(leaves);
@@ -289,14 +314,15 @@ export function buildRoom(kit: Kit, scene: THREE.Scene, { palette, floor, tableT
 
 interface TableOptions {
   palette: Palette;
+  props: PropId[];
   floor: number;
   tableTop: number;
   radius: number;
   centreZ: number;
 }
 
-/** A round wooden table with a rim, an apron, a pedestal and a flower arrangement in the middle. */
-export function buildTable(kit: Kit, scene: THREE.Scene, { palette, floor, tableTop, radius, centreZ }: TableOptions): void {
+/** A round wooden table with a rim, an apron, a pedestal and something in the middle: flowers, food or a laptop. */
+export function buildTable(kit: Kit, scene: THREE.Scene, { palette, props, floor, tableTop, radius, centreZ }: TableOptions): void {
   const { solid, own } = kit;
   const grain = own(woodTexture());
   const top = solid(new THREE.CylinderGeometry(radius, radius, 0.14, 72), palette.table, { map: grain });
@@ -312,17 +338,5 @@ export function buildTable(kit: Kit, scene: THREE.Scene, { palette, floor, table
   foot.position.set(0, floor + 0.08, centreZ);
   scene.add(top, rim, apron, stem, foot);
 
-  // Flowers in a vase.
-  const vase = solid(new THREE.CylinderGeometry(0.2, 0.15, 0.34, 20), 0x4aa3df, { edge: 1.06 });
-  vase.position.set(0, tableTop + 0.17, centreZ);
-  scene.add(vase);
-  const stems: [number, number, number][] = [[0, 0.62, 0], [-0.17, 0.52, 0.04], [0.18, 0.55, -0.03], [0.04, 0.5, 0.17], [-0.06, 0.54, -0.16]];
-  stems.forEach(([x, y, z], i) => {
-    const bloom = solid(new THREE.SphereGeometry(0.13, 16, 12), [0xf2c230, 0xe57373, 0xffffff, 0xf8a5c2, 0xf2c230][i], { edge: 1.08 });
-    bloom.position.set(x, tableTop + y + 0.2, z + centreZ);
-    scene.add(bloom);
-    const leaf = solid(new THREE.SphereGeometry(0.07, 10, 8), 0x4f9a3d, { edge: 0 });
-    leaf.position.set(x * 0.5, tableTop + 0.4, z * 0.5 + centreZ);
-    scene.add(leaf);
-  });
+  buildCentrepiece(props.find((p): p is "flowers" | "food" | "laptop" => CENTREPIECES.includes(p)) ?? "flowers", tableTop, centreZ, { kit, scene, palette, floor, wallZ: -10 });
 }

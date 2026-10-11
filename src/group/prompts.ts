@@ -49,6 +49,7 @@ Rules for your turn:
 - Speak only for yourself, never for anyone else. Do not say you are an AI.
 - Include the student: sometimes ask them a simple question, and always respond to what the student said if they spoke last.${req.studentName ? `\n- Call the student by their name, ${req.studentName}, now and then, naturally, for example when you speak to them directly. Not in every line.` : ""}
 - When you speak to one person, use their name so everyone knows who you mean.
+- Take turns like people do: say your line once the last speaker has finished, and answer what was actually said to you. If a question was put to someone else, leave it to them instead of answering for them, unless they have already answered or you are naturally joining in.
 - If the student makes a real mistake, say the correct form naturally, in passing, instead of lecturing. Do not correct more than one thing.
 - Keep to the scene, but let the conversation flow naturally.`;
 }
@@ -85,6 +86,7 @@ Rules:
 - If the student spoke last, someone must respond now. Choose whoever is best placed: a person addressed by name, or the group's teacher.
 - If the last line asks the student a question, or invites them to speak, choose "user".
 - Otherwise let the characters talk to each other for two or three lines so it feels like a real group, then hand over to the student.
+- A question put to one person is answered by that person, so choose them. Do not let someone else answer it for them, and do not let two people go on talking about the same point at once.
 - Never choose the same character twice in a row. Give everyone a turn over time.
 - Prefer a character who has something natural to add. Someone who was just addressed should answer.
 - The direction tells the next speaker what to do, for example "answer Luna, then ask the student about weekends".`;
