@@ -500,7 +500,7 @@ export default function App() {
           ))}
           {showTranscript && !voiceMode && interim && <div className="msg user interim">🎤 {interim}</div>}
           {!voiceMode && micOn && !interim && (
-            <div className="mic-status">{listening ? `🎤 ${t("mic.listening")}` : t("mic.pausedWhileTeacherTalks")}</div>
+            <div className="mic-status">{recognizer.silent ? `🎤 ${t("mic.noSound")}` : listening ? `🎤 ${t("mic.listening")}` : t("mic.pausedWhileTeacherTalks")}</div>
           )}
         </div>
 

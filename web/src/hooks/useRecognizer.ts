@@ -14,6 +14,11 @@ interface Options {
    * silence, say) a new one starts in the same moment, so words spoken right after are not lost to a restart gap.
    */
   shouldListen?: () => boolean;
+  /**
+   * The microphone to listen to, such as one with echo cancellation. Without one, or in a browser that can't take one,
+   * recognition opens the default microphone itself.
+   */
+  audioTrack?: () => MediaStreamTrack | null | undefined;
 }
 
 /**
@@ -36,6 +41,9 @@ const END_GRACE_MS = { stop: 5000, abort: 1500 };
 const QUICK_END_MS = 1000;
 const RETRY_DELAY_MS = 500;
 
+/** How long the microphone may listen without hearing a single sound before the student is told to check it. */
+const NO_SOUND_HINT_MS = 8000;
+
 const Recognition =
   typeof window === "undefined" ? undefined : (window.SpeechRecognition ?? window.webkitSpeechRecognition);
 
@@ -55,9 +63,20 @@ export function useRecognizer(options: Options) {
   const retryTimer = useRef(0);
   // Once the component has gone, a session that ends is not reopened.
   const unmounted = useRef(false);
+  // Whether the microphone has ever delivered a sound, and whether it has now been listening a while without one.
+  const soundSeen = useRef(false);
+  const [silent, setSilent] = useState(false);
   useEffect(() => {
     latest.current = options;
   });
+
+  // A microphone that hears nothing at all (the wrong one is selected, or it is muted) looks just like one waiting for
+  // the student to talk. Until it has heard something, say so after a while, so the student knows to check it.
+  useEffect(() => {
+    if (!listening || soundSeen.current) return;
+    const timer = window.setTimeout(() => setSilent(!soundSeen.current), NO_SOUND_HINT_MS);
+    return () => window.clearTimeout(timer);
+  }, [listening]);
 
   const start = useCallback(() => {
     if (!Recognition || session.current || unmounted.current) return;
@@ -127,9 +146,16 @@ export function useRecognizer(options: Options) {
     const alive = () => {
       lastEvent = Date.now();
     };
-    r.onaudiostart = r.onsoundstart = r.onspeechstart = r.onspeechend = alive;
-    r.onresult = (event) => {
+    const heard = () => {
       alive();
+      if (soundSeen.current) return;
+      soundSeen.current = true;
+      setSilent(false);
+    };
+    r.onaudiostart = r.onspeechend = alive;
+    r.onsoundstart = r.onspeechstart = heard;
+    r.onresult = (event) => {
+      heard();
       let interim = "";
       let final = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -153,10 +179,19 @@ export function useRecognizer(options: Options) {
 
     session.current = controls;
     setListening(true);
+    const track = latest.current.audioTrack?.();
     try {
-      r.start();
+      // A browser that can't take a track ignores it and opens the default microphone.
+      if (track?.readyState === "live") r.start(track);
+      else r.start();
     } catch {
-      finished();
+      // One that refuses the track still gets to listen with its own microphone.
+      try {
+        if (track) r.start();
+        else finished();
+      } catch {
+        finished();
+      }
     }
   }, []);
 
@@ -178,5 +213,12 @@ export function useRecognizer(options: Options) {
     };
   }, []);
 
-  return { supported: !!Recognition, listening, start, stop };
+  return {
+    supported: !!Recognition,
+    listening,
+    /** Listening, but the microphone hasn't delivered any sound since the page opened. */
+    silent: listening && silent,
+    start,
+    stop,
+  };
 }

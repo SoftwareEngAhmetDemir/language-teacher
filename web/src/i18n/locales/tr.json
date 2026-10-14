@@ -69,7 +69,8 @@
     "titleOff": "Mikrofonu açmak için tıklayın",
     "listening": "Dinleniyor…",
     "on": "Mikrofon açık",
-    "pausedWhileTeacherTalks": "Mikrofon açık · öğretmen konuşurken duraklatıldı"
+    "pausedWhileTeacherTalks": "Mikrofon açık · öğretmen konuşurken duraklatıldı",
+    "noSound": "Dinleniyor, ancak mikrofona hiç ses ulaşmıyor. Konuşuyorsanız doğru mikrofonun seçili olduğunu (Chrome adres çubuğundaki mikrofon simgesi) ve sesinin kapalı olmadığını kontrol edin."
   },
   "toolbar": {
     "stop": "Konuşmayı durdur",

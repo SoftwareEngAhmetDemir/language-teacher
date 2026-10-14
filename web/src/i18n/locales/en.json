@@ -69,7 +69,8 @@
     "titleOff": "Click to turn the microphone on",
     "listening": "Listening…",
     "on": "Microphone on",
-    "pausedWhileTeacherTalks": "Microphone on · paused while the teacher talks"
+    "pausedWhileTeacherTalks": "Microphone on · paused while the teacher talks",
+    "noSound": "Listening, but no sound is reaching the microphone. If you're talking, check that the right microphone is selected (the microphone icon in Chrome's address bar) and that it isn't muted."
   },
   "toolbar": {
     "stop": "Stop conversation",

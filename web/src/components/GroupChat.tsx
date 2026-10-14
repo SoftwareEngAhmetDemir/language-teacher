@@ -6,6 +6,7 @@ import MessageTools from "./MessageTools";
 import ConversationControls from "./ConversationControls";
 import { exportConversation } from "../lib/exportConversation";
 import { useGroupChat } from "../hooks/useGroupChat";
+import { useMicTrack } from "../hooks/useMicTrack";
 import { useRecognizer } from "../hooks/useRecognizer";
 import { presetStyle, styleFromServer, type SceneStyle } from "../avatar/sceneStyle";
 import { fetchBackdrop, fetchSceneStyle, type Config } from "../lib/api";
@@ -120,11 +121,15 @@ export default function GroupChat({ config, language, level, speechTag, studentN
   }
   useEffect(() => holdHeard, []);
 
+  // The microphone stays open while the group talks, so the student can talk over them. It is opened with echo
+  // cancellation, which takes the group's voices out of it; without that they drown out the student.
+  const mic = useMicTrack(micOn);
   const recognizer = useRecognizer({
     lang: speechTag,
     shouldListen: () => micOn,
-    // The microphone stays open while the group talks, so the student can talk over them. The group's own voices come
-    // back through the speakers, so anything that is only an echo of the last lines is ignored.
+    audioTrack: () => mic.track,
+    // Whatever of the group's voices still comes back through the microphone is ignored when it is only an echo of the
+    // last lines.
     onInterim: (text) => {
       const { own, novel } = ownWords(text);
       if (painting || !own) return;
@@ -155,13 +160,19 @@ export default function GroupChat({ config, language, level, speechTag, studentN
     },
   });
 
-  // Keep listening while the mic is on.
-  const { listening, start: startListening } = recognizer;
+  // Keep listening while the mic is on, once its echo-cancelled microphone is open.
+  const { listening, start: startListening, stop: stopListening } = recognizer;
   useEffect(() => {
-    if (!micOn || !recognizer.supported || listening) return;
+    if (!micOn || !recognizer.supported || listening || !mic.ready) return;
     const timer = setTimeout(startListening, 200);
     return () => clearTimeout(timer);
-  }, [micOn, recognizer.supported, listening, startListening]);
+  }, [micOn, recognizer.supported, listening, mic.ready, startListening]);
+  // When the microphone is reopened (another device was plugged in), listen on the new one.
+  const listenedTrack = useRef<MediaStreamTrack | null>(null);
+  useEffect(() => {
+    if (listenedTrack.current && mic.track && mic.track !== listenedTrack.current) stopListening();
+    listenedTrack.current = mic.track;
+  }, [mic.track, stopListening]);
 
   function toggleMember(id: string) {
     const next = members.includes(id) ? members.filter((m) => m !== id) : members.length < max ? [...members, id] : members;
@@ -176,9 +187,9 @@ export default function GroupChat({ config, language, level, speechTag, studentN
       recognizer.stop();
       return;
     }
+    // Listening starts as soon as the microphone is open (see above).
     setMicOn(true);
     setNotice(null);
-    startListening();
   }
 
   function stopConversation() {
@@ -388,7 +399,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
           ))}
         {transcript.show && interim && <div className="msg user interim">🎤 {interim}</div>}
         {micOn && !interim && (
-          <div className="mic-status">{listening ? `🎤 ${t("mic.listening")}` : t("mic.on")}</div>
+          <div className="mic-status">{recognizer.silent ? `🎤 ${t("mic.noSound")}` : listening ? `🎤 ${t("mic.listening")}` : t("mic.on")}</div>
         )}
       </div>
 

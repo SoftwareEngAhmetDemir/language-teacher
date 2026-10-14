@@ -69,7 +69,8 @@
     "titleOff": "Haz clic para activar el micrófono",
     "listening": "Escuchando…",
     "on": "Micrófono activado",
-    "pausedWhileTeacherTalks": "Micrófono activado · en pausa mientras habla el profesor"
+    "pausedWhileTeacherTalks": "Micrófono activado · en pausa mientras habla el profesor",
+    "noSound": "Escuchando, pero no llega ningún sonido al micrófono. Si estás hablando, comprueba que está seleccionado el micrófono correcto (el icono del micrófono en la barra de direcciones de Chrome) y que no está silenciado."
   },
   "toolbar": {
     "stop": "Detener la conversación",
