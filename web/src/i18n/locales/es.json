@@ -1,0 +1,175 @@
+{
+  "app": {
+    "title": "Profesor de idiomas",
+    "loading": "Cargando…",
+    "interfaceLanguage": "Idioma de la interfaz"
+  },
+  "loadError": "No se pudo conectar con el servicio: {{message}}. Inícialo con <code>npm run dev</code> en la raíz del proyecto.",
+  "access": {
+    "placeholder": "Código de acceso",
+    "enter": "Entrar",
+    "wrong": "Código de acceso incorrecto."
+  },
+  "levels": {
+    "A1": "A1 · Principiante",
+    "A2": "A2 · Elemental",
+    "B1": "B1 · Intermedio",
+    "B2": "B2 · Intermedio alto",
+    "C1": "C1 · Avanzado",
+    "C2": "C2 · Maestría",
+    "C2+": "C2+ · Más allá de la maestría"
+  },
+  "languages": {
+    "English": "Inglés",
+    "Turkish": "Turco",
+    "Spanish": "Español",
+    "French": "Francés",
+    "German": "Alemán",
+    "Italian": "Italiano",
+    "Portuguese": "Portugués",
+    "Dutch": "Neerlandés",
+    "Russian": "Ruso",
+    "Arabic": "Árabe",
+    "Hindi": "Hindi",
+    "Japanese": "Japonés",
+    "Korean": "Coreano",
+    "Chinese (Mandarin)": "Chino (mandarín)"
+  },
+  "settings": {
+    "language": "Idioma",
+    "level": "Nivel",
+    "yourName": "Tu nombre",
+    "namePlaceholder": "Para que puedan llamarte",
+    "engine": "Modo",
+    "teacher": "Profesor",
+    "showTeacher": "Mostrar al profesor",
+    "showTable": "Mostrar la mesa 3D",
+    "voice": "Voz",
+    "noVoice": "Sin voz en {{language}}",
+    "speed": "Velocidad {{rate}}×",
+    "speakReplies": "Leer las respuestas en voz alta"
+  },
+  "engines": {
+    "voice": "Conversación de voz natural",
+    "text": "Chat de texto con voz del navegador",
+    "group": "Conversación en grupo (hasta {{max}})"
+  },
+  "notices": {
+    "voiceInputUnsupported": "Este navegador no admite la entrada de voz. Usa Chrome, Edge o Safari, o escribe.",
+    "noBrowserVoice": "Este navegador no tiene ninguna voz en {{language}}, así que las respuestas se leerían con una pronunciación incorrecta. Instala una en los ajustes de voz del sistema (en macOS: Ajustes del Sistema → Accesibilidad → Contenido hablado → Voz del sistema → Gestionar voces) y vuelve a cargar la página."
+  },
+  "mic": {
+    "blocked": "Se bloqueó el acceso al micrófono. Permítelo en los ajustes del sitio de tu navegador.",
+    "missing": "No se encontró ningún micrófono.",
+    "network": "El reconocimiento de voz necesita conexión a internet.",
+    "languageUnsupported": "Este navegador no puede reconocer voz en {{language}}.",
+    "turnOn": "Activar el micrófono",
+    "turnOff": "Desactivar el micrófono",
+    "titleOn": "Micrófono activado. Haz clic para desactivarlo",
+    "titleOff": "Haz clic para activar el micrófono",
+    "listening": "Escuchando…",
+    "on": "Micrófono activado",
+    "pausedWhileTeacherTalks": "Micrófono activado · en pausa mientras habla el profesor"
+  },
+  "toolbar": {
+    "stop": "Detener la conversación",
+    "export": "Exportar la conversación",
+    "hideTranscript": "Ocultar la transcripción",
+    "showTranscript": "Mostrar la transcripción"
+  },
+  "chat": {
+    "emptyVoice": "Practica {{language}} con nivel {{level}} en una conversación real. Inicia la llamada, permite el micrófono y habla. Puedes interrumpir al profesor en cualquier momento. Con auriculares funciona mejor.",
+    "emptyText": "Practica {{language}} con nivel {{level}}. Pulsa el micrófono y habla, escribe abajo o deja que el profesor empiece.",
+    "startLesson": "Empezar la lección",
+    "noReply": "(sin respuesta)",
+    "timing": "primera palabra {{first}} ms · total {{total}} ms",
+    "replay": "Repetir",
+    "you": "Tú",
+    "typeIn": "Escribe en {{language}}…",
+    "typeToo": "Inicia la conversación para poder escribir también",
+    "send": "Enviar",
+    "stop": "Detener"
+  },
+  "call": {
+    "start": "Iniciar conversación",
+    "connecting": "Conectando…",
+    "end": "Terminar conversación",
+    "mute": "Silenciar",
+    "unmute": "Activar sonido",
+    "muted": "Silenciado",
+    "teacherSpeaking": "El profesor está hablando · habla en cualquier momento para interrumpir",
+    "listening": "Escuchando…"
+  },
+  "exportTitle": {
+    "voice": "Llamada de voz en {{language}} ({{level}})",
+    "text": "Chat de texto en {{language}} ({{level}})",
+    "group": "Conversación en grupo en {{language}} ({{level}})"
+  },
+  "group": {
+    "setup": "Configuración del grupo",
+    "atTable": "En la mesa ({{count}} de {{max}})",
+    "upTo": "Hasta {{max}} personas",
+    "atLeast": "Al menos {{min}} personas",
+    "scene": "Escena",
+    "ownTopic": "Tema propio (opcional)",
+    "topicPlaceholder": "Por ejemplo: mi película favorita",
+    "voices": "Voces",
+    "startScene": "Iniciar escena",
+    "restartScene": "Reiniciar escena",
+    "painting": "Pintando la sala para tu tema. El grupo empezará a hablar enseguida…",
+    "preparing": "Preparando la sala. El grupo empezará a hablar en un momento.",
+    "statusIdle": "Elige quién se sienta a la mesa, escoge una escena y pulsa Iniciar.",
+    "statusTalkingMic": "El grupo está hablando. Habla, escribe o pulsa Detener para intervenir.",
+    "statusTalking": "El grupo está hablando. Pulsa Detener o escribe para intervenir.",
+    "statusYourTurn": "Es tu turno. Di algo o deja que sigan hablando.",
+    "aboutToSpeak": "{{name}} está a punto de hablar…",
+    "browserVoices": "Las voces naturales de los personajes no están disponibles ahora, así que se usan las voces de tu navegador.",
+    "pictureFailed": "No se pudo crear la imagen para tu tema, así que se usa la sala estándar.",
+    "keepTalking": "Que sigan hablando",
+    "sayIn": "Di algo en {{language}}…"
+  },
+  "scenes": {
+    "cafe": "Charla en una cafetería",
+    "study": "Grupo de estudio",
+    "dinner": "Mesa de cena",
+    "travel": "Planear un viaje",
+    "weekend": "Planes del fin de semana"
+  },
+  "roles": {
+    "professor": "El profesor del grupo",
+    "luna": "Compañera amable y curiosa",
+    "rex": "Compañero animado y bromista",
+    "robot": "Compañero preciso y peculiar",
+    "anime": "Compañero alegre y entusiasta"
+  },
+  "translate": {
+    "button": "Traducir",
+    "region": "Traducción",
+    "to": "Traducir a",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "close": "Cerrar la traducción",
+    "translating": "Traduciendo",
+    "tryAgain": "Reintentar"
+  },
+  "avatar": {
+    "loading": "Cargando al profesor…",
+    "teacherFailed": "No se pudo cargar el profesor 3D en este dispositivo.",
+    "tableFailed": "No se pudo cargar la mesa 3D en este dispositivo."
+  },
+  "errors": {
+    "configLoad": "No se pudo cargar la configuración ({{status}})",
+    "groupFailed": "Falló la conversación en grupo",
+    "voiceUnreachable": "No se pudo conectar con el servicio de voz",
+    "voiceClosed": "El servicio de voz cerró la conexión",
+    "voiceSlow": "La voz tardó demasiado en empezar",
+    "voiceNoAudio": "La voz no devolvió audio",
+    "wrongCode": "Código de acceso incorrecto",
+    "codeRequired": "Se necesita un código de acceso",
+    "groupBusy": "El grupo está ocupado, inténtalo de nuevo en un momento",
+    "tooManyVoices": "Demasiadas voces a la vez",
+    "translationFailed": "Falló la traducción",
+    "requestFailed": "Falló la solicitud a Gemini",
+    "micLost": "Se desconectó el micrófono. Revísalo y vuelve a iniciar la conversación."
+  }
+}

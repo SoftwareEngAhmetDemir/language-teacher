@@ -1,3 +1,21 @@
+import i18n from "../i18n";
+import { languageInline } from "../i18n/labels";
+
+/** What to tell the student when speech recognition fails with this error code; undefined for errors that need no message. */
+export function recognitionProblem(code: string, language: string): string | undefined {
+  switch (code) {
+    case "not-allowed":
+    case "service-not-allowed":
+      return i18n.t("mic.blocked");
+    case "audio-capture":
+      return i18n.t("mic.missing");
+    case "network":
+      return i18n.t("mic.network");
+    case "language-not-supported":
+      return i18n.t("mic.languageUnsupported", { language: languageInline(i18n.t, language) });
+  }
+}
+
 const SENTENCE_END = /[.!?…]+["')\]]*(?=\s)|[。！？]+|\n+/;
 
 /**

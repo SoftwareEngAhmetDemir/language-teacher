@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { translate } from "../lib/api";
 import { loadPref, savePref } from "../lib/prefs";
+import { languageLabel } from "../i18n/labels";
 
 interface Props {
   text: string;
@@ -17,6 +19,7 @@ type Status = { kind: "idle" } | { kind: "loading" } | { kind: "error"; message:
 
 /** Under a transcript message: a Translate button that opens a language picker and the translation. */
 export default function MessageTools({ text, role, languages, defaultTarget, children }: Props) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [target, setTarget] = useState(() => {
     const saved = loadPref("translateTo", defaultTarget);
@@ -62,16 +65,16 @@ export default function MessageTools({ text, role, languages, defaultTarget, chi
     <div className={`tools ${role}`}>
       <div className="actions">
         <button type="button" className={`chip${open ? " active" : ""}`} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-          🌐 Translate
+          🌐 {t("translate.button")}
         </button>
         {children}
       </div>
 
       {open && (
-        <div className="translation" role="region" aria-label="Translation" aria-live="polite">
+        <div className="translation" role="region" aria-label={t("translate.region")} aria-live="polite">
           <div className="translation-head">
             <label className="lang-picker">
-              <span>Translate to</span>
+              <span>{t("translate.to")}</span>
               <select
                 value={target}
                 onChange={(e) => {
@@ -80,24 +83,26 @@ export default function MessageTools({ text, role, languages, defaultTarget, chi
                 }}
               >
                 {languages.map((l) => (
-                  <option key={l}>{l}</option>
+                  <option key={l} value={l}>
+                    {languageLabel(t, l)}
+                  </option>
                 ))}
               </select>
             </label>
             <div className="translation-buttons">
               {translation && (
                 <button type="button" className="icon" onClick={copy}>
-                  {copied ? "✓ Copied" : "Copy"}
+                  {copied ? `✓ ${t("translate.copied")}` : t("translate.copy")}
                 </button>
               )}
-              <button type="button" className="icon" aria-label="Close translation" onClick={() => setOpen(false)}>
+              <button type="button" className="icon" aria-label={t("translate.close")} onClick={() => setOpen(false)}>
                 ✕
               </button>
             </div>
           </div>
 
           {!translation && status.kind === "loading" && (
-            <div className="skeleton" aria-label="Translating">
+            <div className="skeleton" aria-label={t("translate.translating")}>
               <span />
               <span />
             </div>
@@ -106,7 +111,7 @@ export default function MessageTools({ text, role, languages, defaultTarget, chi
             <p className="translation-error">
               {status.message}{" "}
               <button type="button" className="link" onClick={() => setAttempt((n) => n + 1)}>
-                Try again
+                {t("translate.tryAgain")}
               </button>
             </p>
           )}

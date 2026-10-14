@@ -1,9 +1,14 @@
+import i18n from "../i18n";
 import { openSpeech } from "./api";
 import { voicesForLanguage } from "./speech";
 
 const SAMPLE_RATE = 24000;
 /** If a character's voice hasn't started within this long, the browser's voice speaks the line instead. */
 const FIRST_AUDIO_TIMEOUT_MS = 8000;
+/** A voice that stops arriving partway through a line for this long is given up on, and the line ends where it got to. */
+const AUDIO_STALL_MS = 10_000;
+/** How much longer than its audio a line may take before it is ended anyway (the browser's audio clock can stop). */
+const PLAYBACK_GRACE_MS = 2000;
 
 /** A person who has finished speaking leaves a short silence before the next one starts, a little longer after a question. */
 function turnGap(text: string): number {
@@ -180,16 +185,18 @@ export class GroupPlayer {
 
   /** Starts fetching a line's voice and feeds the clip as audio arrives. */
   private fetchClip(line: SpokenLine, clip: Clip, abort: AbortController): void {
-    const timer = window.setTimeout(() => {
-      if (clip.segments.length === 0) {
-        abort.abort();
-        clip.finish("The voice took too long to start");
-      }
+    // Gives up on the voice without dropping the line: `abort` would skip the line altogether, while this lets it be
+    // spoken by the browser's voice, or end where the voice got to.
+    const giveUp = new AbortController();
+    const signal = AbortSignal.any([abort.signal, giveUp.signal]);
+    let timer = window.setTimeout(() => {
+      giveUp.abort();
+      clip.finish(i18n.t("errors.voiceSlow"));
     }, FIRST_AUDIO_TIMEOUT_MS);
 
     void (async () => {
       try {
-        const response = await openSpeech(line.text, line.speaker, abort.signal);
+        const response = await openSpeech(line.text, line.speaker, signal);
         const reader = response.body!.getReader();
         let carry: number | null = null; // a 16-bit sample can be split across two chunks
         for (;;) {
@@ -209,13 +216,21 @@ export class GroupPlayer {
           }
           if (bytes.length) {
             window.clearTimeout(timer);
+            timer = window.setTimeout(() => giveUp.abort(), AUDIO_STALL_MS);
             clip.push(this.decode(bytes));
           }
         }
-        clip.finish(clip.segments.length ? undefined : "The voice returned no audio");
+        clip.finish(clip.segments.length ? undefined : i18n.t("errors.voiceNoAudio"));
       } catch (err) {
-        const failure = err instanceof Error ? err.message : String(err);
-        if (!abort.signal.aborted) console.warn("Using the browser voice for a line:", failure);
+        // A voice given up on is reported as what happened, not as a bare "operation was aborted".
+        const failure = giveUp.signal.aborted
+          ? clip.segments.length
+            ? "The voice stopped arriving partway through the line"
+            : i18n.t("errors.voiceSlow")
+          : err instanceof Error
+            ? err.message
+            : String(err);
+        if (!abort.signal.aborted) console.warn(clip.segments.length ? "A voice was cut short:" : "Using the browser voice for a line:", failure);
         clip.finish(failure);
       } finally {
         window.clearTimeout(timer);
@@ -275,15 +290,38 @@ export class GroupPlayer {
       let playing = 0;
       let nextStart = 0;
       let finished = false;
+      // When, by the wall clock, everything scheduled so far should have finished playing.
+      let audioEnds = performance.now();
 
       const finish = (completed: boolean) => {
         if (finished) return;
         finished = true;
+        window.clearInterval(watchdog);
         clip.onChange = null;
         this.current = null;
         this.events.onEnd(line, completed);
         resolve();
       };
+      const silence = () => {
+        for (const source of sources) {
+          source.onended = null;
+          try {
+            source.stop();
+          } catch {
+            // Already finished.
+          }
+        }
+      };
+      // The browser only reports that audio has ended while its audio clock runs. If the clock stops (the context was
+      // suspended, or the output device changed), try to restart it, and don't let the line, and with it the whole
+      // conversation, wait forever: once its audio has had time to play, it is over.
+      const watchdog = window.setInterval(() => {
+        if (ctx.state !== "running" && ctx.state !== "closed") void ctx.resume().catch(() => {});
+        if (clip.done && scheduled === clip.segments.length && performance.now() > audioEnds + PLAYBACK_GRACE_MS) {
+          silence();
+          finish(true);
+        }
+      }, 500);
       const checkEnd = () => {
         if (clip.done && scheduled === clip.segments.length && playing === 0) finish(true);
       };
@@ -305,6 +343,7 @@ export class GroupPlayer {
             checkEnd();
           };
         }
+        audioEnds = performance.now() + Math.max(0, nextStart - ctx.currentTime) * 1000;
         checkEnd();
       };
 
@@ -314,14 +353,7 @@ export class GroupPlayer {
         stop: () => {
           clip.onChange = null;
           item.abort.abort();
-          for (const source of sources) {
-            source.onended = null;
-            try {
-              source.stop();
-            } catch {
-              // Already finished.
-            }
-          }
+          silence();
           finish(false);
         },
       };

@@ -1,7 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { fetchConfig, getCode, streamReply, unlock, type Config, type Lesson } from "./lib/api";
 import type { Engine, Message } from "./lib/types";
-import { splitSentences } from "./lib/speech";
+import { recognitionProblem, splitSentences } from "./lib/speech";
 import { useRecognizer } from "./hooks/useRecognizer";
 import { useSpeaker } from "./hooks/useSpeaker";
 import { useVoiceConversation } from "./hooks/useVoiceConversation";
@@ -11,16 +12,8 @@ import MessageTools from "./components/MessageTools";
 import ConversationControls from "./components/ConversationControls";
 import { exportConversation } from "./lib/exportConversation";
 import { loadPref, savePref } from "./lib/prefs";
-
-const LEVEL_NAMES: Record<string, string> = {
-  A1: "A1 · Beginner",
-  A2: "A2 · Elementary",
-  B1: "B1 · Intermediate",
-  B2: "B2 · Upper-intermediate",
-  C1: "C1 · Advanced",
-  C2: "C2 · Mastery",
-  "C2+": "C2+ · Beyond mastery",
-};
+import LanguageSwitcher from "./i18n/LanguageSwitcher";
+import { languageInline, languageLabel, levelLabel } from "./i18n/labels";
 
 // three.js and the 3D model are only downloaded when the teacher is shown.
 const VrmTeacher = lazy(() => import("./avatar/Avatar"));
@@ -29,6 +22,7 @@ const CartoonTeacher = lazy(() => import("./avatar/CartoonAvatar"));
 const START_LESSON = "Hello! Please start our lesson.";
 
 export default function App() {
+  const { t } = useTranslation();
   const [config, setConfig] = useState<Config | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [language, setLanguage] = useState(() => loadPref("language", "English"));
@@ -102,15 +96,9 @@ export default function App() {
       void send(text);
     },
     onError: (code) => {
-      const problem: Record<string, string> = {
-        "not-allowed": "Microphone access was blocked. Allow it in your browser's site settings.",
-        "service-not-allowed": "Microphone access was blocked. Allow it in your browser's site settings.",
-        "audio-capture": "No microphone was found.",
-        network: "Speech recognition needs an internet connection.",
-        "language-not-supported": `This browser cannot recognise ${language} speech.`,
-      };
-      if (problem[code]) {
-        setNotice(problem[code]);
+      const problem = recognitionProblem(code, language);
+      if (problem) {
+        setNotice(problem);
         setMicOn(false);
       }
     },
@@ -199,9 +187,9 @@ export default function App() {
       }
       if (speakReplies && unspoken.trim()) speaker.speak(unspoken);
       patch({
-        text: full || "(no reply)",
+        text: full || t("chat.noReply"),
         error: !full,
-        timing: `first word ${Math.round(firstWord ?? 0)} ms · total ${Math.round(performance.now() - started)} ms`,
+        timing: t("chat.timing", { first: Math.round(firstWord ?? 0), total: Math.round(performance.now() - started) }),
       });
     } catch (e) {
       if (controller.signal.aborted) {
@@ -224,8 +212,9 @@ export default function App() {
 
   function exportTranscript() {
     exportConversation(
-      `${voiceMode ? "Voice call" : "Text chat"} in ${language} (${level})`,
-      shown.map((m) => ({ speaker: m.role === "user" ? (studentName || "You") : character.name, text: m.text, interrupted: m.interrupted })),
+      t(voiceMode ? "exportTitle.voice" : "exportTitle.text", { language: languageInline(t, language), level }),
+      shown.map((m) => ({ speaker: m.role === "user" ? (studentName || t("chat.you")) : character.name, text: m.text, interrupted: m.interrupted })),
+      `${voiceMode ? "voice-call" : "text-chat"}-${language}-${level}`,
     );
   }
 
@@ -259,17 +248,20 @@ export default function App() {
     return (
       <main>
         <p className="notice error">
-          Could not reach the service: {loadError}. Start it with <code>npm run dev</code> in the project root.
+          <Trans i18nKey="loadError" values={{ message: loadError }} components={{ code: <code /> }} />
         </p>
       </main>
     );
   }
-  if (!config) return <main>Loading…</main>;
+  if (!config) return <main>{t("app.loading")}</main>;
 
   if (config.requiresCode && !unlocked) {
     return (
       <main>
-        <h1>Language Teacher</h1>
+        <header>
+          <h1>{t("app.title")}</h1>
+          <LanguageSwitcher />
+        </header>
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -282,14 +274,14 @@ export default function App() {
             type="password"
             value={codeInput}
             onChange={(e) => setCodeInput(e.target.value)}
-            placeholder="Access code"
+            placeholder={t("access.placeholder")}
             autoFocus
           />
           <button type="submit" disabled={!codeInput}>
-            Enter
+            {t("access.enter")}
           </button>
         </form>
-        {codeWrong && <p className="notice error">Wrong access code.</p>}
+        {codeWrong && <p className="notice error">{t("access.wrong")}</p>}
       </main>
     );
   }
@@ -297,7 +289,8 @@ export default function App() {
   return (
     <main>
       <header>
-        <h1>Language Teacher</h1>
+        <h1>{t("app.title")}</h1>
+        <LanguageSwitcher />
       </header>
 
       {showTeacher && !groupMode && (
@@ -313,29 +306,31 @@ export default function App() {
 
       <fieldset className="settings" disabled={sceneBusy}>
         <label>
-          Language
+          {t("settings.language")}
           <select value={language} onChange={(e) => newConversation(() => { setLanguage(e.target.value); savePref("language", e.target.value); })}>
             {config.languages.map((l) => (
-              <option key={l.name}>{l.name}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Level
-          <select value={level} onChange={(e) => newConversation(() => { setLevel(e.target.value); savePref("level", e.target.value); })}>
-            {config.levels.map((l) => (
-              <option key={l} value={l}>
-                {LEVEL_NAMES[l] ?? l}
+              <option key={l.name} value={l.name}>
+                {languageLabel(t, l.name)}
               </option>
             ))}
           </select>
         </label>
         <label>
-          Your name
+          {t("settings.level")}
+          <select value={level} onChange={(e) => newConversation(() => { setLevel(e.target.value); savePref("level", e.target.value); })}>
+            {config.levels.map((l) => (
+              <option key={l} value={l}>
+                {levelLabel(t, l)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t("settings.yourName")}
           <input
             value={nameDraft}
             maxLength={30}
-            placeholder="So they can call you"
+            placeholder={t("settings.namePlaceholder")}
             autoComplete="given-name"
             onChange={(e) => setNameDraft(e.target.value)}
             onBlur={commitName}
@@ -343,19 +338,19 @@ export default function App() {
           />
         </label>
         <label>
-          Engine
+          {t("settings.engine")}
           <select
             value={engine}
             onChange={(e) => newConversation(() => { setEngine(e.target.value as Engine); savePref("engine", e.target.value); })}
           >
-            <option value="voice">Natural voice conversation</option>
-            <option value="text">Text chat with browser voice</option>
-            <option value="group">Group conversation (up to 4)</option>
+            <option value="voice">{t("engines.voice")}</option>
+            <option value="text">{t("engines.text")}</option>
+            <option value="group">{t("engines.group", { max: config.group.max })}</option>
           </select>
         </label>
         {!groupMode && (
           <label>
-            Teacher
+            {t("settings.teacher")}
             <select
               value={character.id}
               disabled={!showTeacher}
@@ -384,18 +379,18 @@ export default function App() {
               savePref("showTeacher", e.target.checked ? "on" : "off");
             }}
           />
-          {groupMode ? "Show 3D table" : "Show teacher"}
+          {groupMode ? t("settings.showTable") : t("settings.showTeacher")}
         </label>
         {engine === "text" && (
           <>
             <label>
-              Voice
+              {t("settings.voice")}
               <select
                 value={speaker.voice?.voiceURI ?? ""}
                 disabled={speaker.voices.length === 0}
                 onChange={(e) => speaker.chooseVoice(e.target.value)}
               >
-                {speaker.voices.length === 0 && <option value="">No {language} voice</option>}
+                {speaker.voices.length === 0 && <option value="">{t("settings.noVoice", { language: languageInline(t, language) })}</option>}
                 {speaker.voices.map((v) => (
                   <option key={v.voiceURI} value={v.voiceURI}>
                     {v.name} ({v.lang})
@@ -404,7 +399,7 @@ export default function App() {
               </select>
             </label>
             <label>
-              Speed {speaker.rate.toFixed(2)}×
+              {t("settings.speed", { rate: speaker.rate.toFixed(2) })}
               <input
                 type="range"
                 min="0.7"
@@ -416,7 +411,7 @@ export default function App() {
             </label>
             <label className="check">
               <input type="checkbox" checked={speakReplies} onChange={(e) => { setSpeakReplies(e.target.checked); if (!e.target.checked) speaker.stop(); }} />
-              Speak replies
+              {t("settings.speakReplies")}
             </label>
           </>
         )}
@@ -436,11 +431,11 @@ export default function App() {
       ) : (
         <>
         {!voiceMode && !recognizer.supported && (
-          <p className="notice">Voice input isn't supported in this browser. Use Chrome, Edge or Safari, or type instead.</p>
+          <p className="notice">{t("notices.voiceInputUnsupported")}</p>
         )}
         {!voiceMode && speakReplies && !speaker.hasVoice && (
           <p className="notice">
-            This browser has no {language} voice, so replies would be read with the wrong pronunciation. Install one in your system's speech settings (on macOS: System Settings → Accessibility → Spoken Content → System Voice → Manage Voices), then reload.
+            {t("notices.noBrowserVoice", { language: languageInline(t, language) })}
           </p>
         )}
         {notice && !voiceMode && <p className="notice error">{notice}</p>}
@@ -459,7 +454,7 @@ export default function App() {
             aria-pressed={showTranscript}
             onClick={toggleTranscript}
           >
-            💬 {showTranscript ? "Hide transcript" : "Show transcript"}
+            💬 {showTranscript ? t("toolbar.hideTranscript") : t("toolbar.showTranscript")}
             {!showTranscript && shown.length > 0 ? ` (${shown.length})` : ""}
           </button>
         </div>
@@ -469,15 +464,15 @@ export default function App() {
             <div className="empty">
               {voiceMode ? (
                 <p>
-                  Practise {language} at level {level} in a real conversation. Start the call, allow the microphone and just talk. You can interrupt the teacher at any moment. Headphones work best.
+                  {t("chat.emptyVoice", { language: languageInline(t, language), level })}
                 </p>
               ) : (
                 <>
                   <p>
-                    Practise {language} at level {level}. Press the microphone and speak, type below, or let the teacher begin.
+                    {t("chat.emptyText", { language: languageInline(t, language), level })}
                   </p>
                   <button onClick={() => send(START_LESSON, true)} disabled={busy}>
-                    Start lesson
+                    {t("chat.startLesson")}
                   </button>
                 </>
               )}
@@ -494,7 +489,7 @@ export default function App() {
                   {!voiceMode && m.role === "assistant" && (
                     <>
                       <button type="button" className="chip" onClick={() => { speaker.stop(); speaker.speakText(m.text); }}>
-                        🔊 Replay
+                        🔊 {t("chat.replay")}
                       </button>
                       {m.timing && <span className="timing">{m.timing}</span>}
                     </>
@@ -505,7 +500,7 @@ export default function App() {
           ))}
           {showTranscript && !voiceMode && interim && <div className="msg user interim">🎤 {interim}</div>}
           {!voiceMode && micOn && !interim && (
-            <div className="mic-status">{listening ? "🎤 Listening…" : "Microphone on · paused while the teacher talks"}</div>
+            <div className="mic-status">{listening ? `🎤 ${t("mic.listening")}` : t("mic.pausedWhileTeacherTalks")}</div>
           )}
         </div>
 
@@ -517,14 +512,14 @@ export default function App() {
                 disabled={voice.status === "connecting"}
                 onClick={() => (voice.status === "idle" ? void voice.start(lesson) : voice.stop())}
               >
-                {voice.status === "idle" ? "🎤 Start conversation" : voice.status === "connecting" ? "Connecting…" : "End conversation"}
+                {voice.status === "idle" ? `🎤 ${t("call.start")}` : voice.status === "connecting" ? t("call.connecting") : t("call.end")}
               </button>
               {voice.status === "live" && (
-                <button onClick={voice.toggleMute}>{voice.muted ? "Unmute" : "Mute"}</button>
+                <button onClick={voice.toggleMute}>{voice.muted ? t("call.unmute") : t("call.mute")}</button>
               )}
               <span className="call-status">
                 {voice.status === "live" &&
-                  (voice.muted ? "Muted" : voice.teacherSpeaking ? "Teacher is speaking · talk any time to interrupt" : "Listening…")}
+                  (voice.muted ? t("call.muted") : voice.teacherSpeaking ? t("call.teacherSpeaking") : t("call.listening"))}
               </span>
             </div>
           )}
@@ -538,24 +533,24 @@ export default function App() {
             }}
           >
             {!voiceMode && (
-              <button type="button" className={`mic${micOn ? " on" : ""}${listening ? " live" : ""}`} onClick={toggleMic} disabled={!recognizer.supported} aria-label={micOn ? "Turn microphone off" : "Turn microphone on"} title={micOn ? "Microphone on. Click to turn off" : "Click to turn the microphone on"}>
+              <button type="button" className={`mic${micOn ? " on" : ""}${listening ? " live" : ""}`} onClick={toggleMic} disabled={!recognizer.supported} aria-label={micOn ? t("mic.turnOff") : t("mic.turnOn")} title={micOn ? t("mic.titleOn") : t("mic.titleOff")}>
                 🎤
               </button>
             )}
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={voiceMode && voice.status !== "live" ? "Start the conversation to type as well" : `Type in ${language}…`}
+              placeholder={voiceMode && voice.status !== "live" ? t("chat.typeToo") : t("chat.typeIn", { language: languageInline(t, language) })}
               disabled={voiceMode && voice.status !== "live"}
               autoComplete="off"
             />
             {!voiceMode && (busy || speaker.speaking) ? (
               <button type="button" onClick={stopAll}>
-                Stop
+                {t("chat.stop")}
               </button>
             ) : (
               <button type="submit" disabled={!input.trim() || (voiceMode && voice.status !== "live")}>
-                Send
+                {t("chat.send")}
               </button>
             )}
           </form>

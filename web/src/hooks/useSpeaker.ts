@@ -3,6 +3,9 @@ import { cleanForSpeech, splitSentences, voicesForLanguage } from "../lib/speech
 
 const DEFAULT_RATE = 1.1;
 
+/** Longer than any one sentence takes: speech that has shown no sign of life for this long is stuck. */
+const STUCK_MS = 30_000;
+
 const supported = typeof window !== "undefined" && "speechSynthesis" in window;
 
 function loadPref(key: string): string | null {
@@ -42,6 +45,12 @@ export function useSpeaker(tag: string, style: { pitch: number; rate: number } =
   const pending = useRef(0);
   // Bumped on stop() so late events from cancelled utterances are ignored.
   const generation = useRef(0);
+  // Utterances being spoken. Chrome can lose the events of an utterance nothing holds on to, and then never reports
+  // its end: the teacher would count as speaking for good, and the microphone, which waits for them, would never reopen.
+  const live = useRef(new Set<SpeechSynthesisUtterance>());
+  // When speech last showed a sign of life, and how many sentences are still waiting for the voice list to load.
+  const lastActivity = useRef(0);
+  const waitingForVoices = useRef(0);
 
   const refresh = useCallback(() => {
     if (!supported) return [];
@@ -111,13 +120,27 @@ export function useSpeaker(tag: string, style: { pitch: number; rate: number } =
         if (chosen) utterance.voice = chosen;
         utterance.rate = Math.min(2, Math.max(0.5, rateRef.current * styleRef.current.rate));
         utterance.pitch = Math.min(2, Math.max(0, styleRef.current.pitch));
-        utterance.onend = finish;
-        utterance.onerror = finish;
+        const done = () => {
+          live.current.delete(utterance);
+          lastActivity.current = Date.now();
+          finish();
+        };
+        utterance.onstart = () => (lastActivity.current = Date.now());
+        utterance.onend = done;
+        utterance.onerror = done;
+        live.current.add(utterance);
+        lastActivity.current = Date.now();
         speechSynthesis.speak(utterance);
       };
 
       if (speechSynthesis.getVoices().length) run();
-      else void voicesLoaded().then(run);
+      else {
+        waitingForVoices.current++;
+        void voicesLoaded().then(() => {
+          waitingForVoices.current--;
+          run();
+        });
+      }
     },
     [tag, chosenURI, refresh],
   );
@@ -134,11 +157,25 @@ export function useSpeaker(tag: string, style: { pitch: number; rate: number } =
   const stop = useCallback(() => {
     generation.current++;
     pending.current = 0;
+    live.current.clear();
     if (supported) speechSynthesis.cancel();
     setSpeaking(false);
   }, []);
 
   useEffect(() => stop, [stop]);
+
+  // The browser doesn't always report that speech has ended. While the teacher counts as speaking, check that the
+  // browser really is: if it has gone quiet, or shown no sign of life for far too long, speaking is over.
+  useEffect(() => {
+    if (!speaking || !supported) return;
+    let quiet = 0;
+    const timer = window.setInterval(() => {
+      if (waitingForVoices.current) return;
+      quiet = speechSynthesis.speaking || speechSynthesis.pending ? 0 : quiet + 1;
+      if (quiet >= 2 || Date.now() - lastActivity.current > STUCK_MS) stop();
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [speaking, stop]);
 
   return {
     speak,

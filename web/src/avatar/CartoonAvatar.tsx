@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import * as THREE from "three";
 import type { Look } from "./characters";
 import { createCartoonRig } from "./cartoonRig";
@@ -16,6 +17,7 @@ interface Props {
 
 /** One cartoon teacher in its own canvas. */
 export default function CartoonAvatar({ look, analyser, speaking, attentive }: Props) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const latest = useRef({ analyser, speaking, attentive });
   const [failed, setFailed] = useState(false);
@@ -83,7 +85,7 @@ export default function CartoonAvatar({ look, analyser, speaking, attentive }: P
   return (
     <div className="avatar">
       <canvas ref={canvasRef} />
-      {failed && <span className="avatar-note">The 3D teacher couldn't load on this device.</span>}
+      {failed && <span className="avatar-note">{t("avatar.teacherFailed")}</span>}
     </div>
   );
 }

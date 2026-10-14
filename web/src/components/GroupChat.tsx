@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CHARACTERS } from "../avatar/characters";
 import type { Seat } from "../avatar/GroupScene";
 import MessageTools from "./MessageTools";
@@ -8,8 +9,10 @@ import { useGroupChat } from "../hooks/useGroupChat";
 import { useRecognizer } from "../hooks/useRecognizer";
 import { presetStyle, styleFromServer, type SceneStyle } from "../avatar/sceneStyle";
 import { fetchBackdrop, fetchSceneStyle, type Config } from "../lib/api";
-import { isEcho, wordCount } from "../lib/echo";
+import { studentWords } from "../lib/echo";
 import { loadPref, savePref } from "../lib/prefs";
+import { recognitionProblem } from "../lib/speech";
+import { characterRole, languageInline, sceneTitle } from "../i18n/labels";
 
 // three.js and the characters are only downloaded when a group scene is shown.
 const GroupScene = lazy(() => import("../avatar/GroupScene"));
@@ -34,9 +37,6 @@ const PREPARE_TIMEOUT_MS = 35_000;
 /** How long the student has to be quiet before what they said is sent on, so a pause in the middle of a thought does not split it. */
 const SETTLE_MS = 900;
 
-/** How long after the group stops its own voices may still be arriving through the microphone. */
-const ECHO_TAIL_MS = 3000;
-
 /** Name colours, one per seat. */
 const COLORS = ["#1a73e8", "#e0457b", "#2e9e5b", "#d98324"];
 const DEFAULT_MEMBERS = ["professor", "luna", "rex"];
@@ -56,6 +56,7 @@ function loadMembers(valid: string[], min: number, max: number): string[] {
 
 /** Group conversation: up to four characters around a table talk with the student and with each other. */
 export default function GroupChat({ config, language, level, speechTag, studentName, showScene, transcript, onBusyChange }: Props) {
+  const { t } = useTranslation();
   const { min, max, characters, scenes } = config.group;
   const validIds = useMemo(() => characters.map((c) => c.id), [characters]);
   const [members, setMembers] = useState(() => loadMembers(validIds, min, max));
@@ -84,7 +85,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
       }),
     [members, characters],
   );
-  const nameOf = (id: string) => (id === "user" ? "You" : (characters.find((c) => c.id === id)?.name ?? id));
+  const nameOf = (id: string) => (id === "user" ? t("chat.you") : (characters.find((c) => c.id === id)?.name ?? id));
   const colorOf = (id: string) => (id === "user" ? "var(--accent)" : COLORS[Math.max(0, members.indexOf(id)) % COLORS.length]);
 
   const group = useGroupChat({
@@ -101,26 +102,10 @@ export default function GroupChat({ config, language, level, speechTag, studentN
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [group.messages, interim]);
 
-  /** The last few things the characters said, which may still be coming out of the speakers. */
-  const recentSpeech = () => group.messages.filter((m) => m.speaker !== "user").slice(-4).map((m) => m.text);
-
-  // When the group last stopped making sound. The browser delivers what the microphone heard a moment late, so the
-  // group's own words can arrive just after they have finished.
-  const soundEnded = useRef(0);
-  const makingSound = running || group.speakingId !== null;
-  useEffect(() => {
-    if (!makingSound) return;
-    return () => {
-      soundEnded.current = Date.now();
-    };
-  }, [makingSound]);
-  /** Whether this is probably the group coming back through the microphone, not the student. */
-  const isGroupEcho = (text: string) => {
-    if (makingSound) return isEcho(text, recentSpeech());
-    // Just after they stop, a short answer is the student's (a one-word reply to a question), but a longer run of words
-    // that matches what was said is the tail of the group's own voices.
-    return Date.now() - soundEnded.current < ECHO_TAIL_MS && wordCount(text) >= 3 && isEcho(text, recentSpeech());
-  };
+  // When the phrase being recognised now began to arrive, which decides whether it can hold the group's voices.
+  const phraseStart = useRef<number | null>(null);
+  /** The student's own words in a phrase the microphone heard, with any echo of the group's voices taken out. */
+  const ownWords = (text: string) => studentWords(text, (phraseStart.current ??= Date.now()), group.lastHeardAt(), group.heardLines());
 
   // What the student has said by voice and not yet sent. People pause mid-thought and the browser ends a phrase at every
   // pause, so each phrase is held for a moment: if another follows, they go to the group together as one message.
@@ -141,29 +126,30 @@ export default function GroupChat({ config, language, level, speechTag, studentN
     // The microphone stays open while the group talks, so the student can talk over them. The group's own voices come
     // back through the speakers, so anything that is only an echo of the last lines is ignored.
     onInterim: (text) => {
-      if (painting || isGroupEcho(text)) return;
-      setInterim(text);
+      const { own, novel } = ownWords(text);
+      if (painting || !own) return;
+      setInterim(own);
       holdHeard(); // Still speaking: whatever was held is not finished yet.
-      // As soon as the student really starts to speak, the group stops talking and listens.
-      if (running && wordCount(text) >= 2) group.interrupt();
+      // As soon as the student really starts to speak, the group stops talking and listens. Only words the group was not
+      // saying count: garbled echo of their own lines must not cut them off.
+      if (running && novel >= 2) group.interrupt();
     },
     onFinal: (text) => {
-      if (painting || isGroupEcho(text)) return;
-      heard.current.text = `${heard.current.text} ${text}`.trim();
+      const { own } = ownWords(text);
+      phraseStart.current = null; // Whatever is heard next is a new phrase.
+      if (painting || !own) return;
+      heard.current.text = `${heard.current.text} ${own}`.trim();
       setInterim(heard.current.text); // Shown while it waits to see whether more follows.
       holdHeard();
       heard.current.timer = window.setTimeout(sendHeard, SETTLE_MS);
     },
+    onEnd: () => {
+      phraseStart.current = null;
+    },
     onError: (code) => {
-      const problem: Record<string, string> = {
-        "not-allowed": "Microphone access was blocked. Allow it in your browser's site settings.",
-        "service-not-allowed": "Microphone access was blocked. Allow it in your browser's site settings.",
-        "audio-capture": "No microphone was found.",
-        network: "Speech recognition needs an internet connection.",
-        "language-not-supported": `This browser cannot recognise ${language} speech.`,
-      };
-      if (problem[code]) {
-        setNotice(problem[code]);
+      const problem = recognitionProblem(code, language);
+      if (problem) {
+        setNotice(problem);
         setMicOn(false);
       }
     },
@@ -209,8 +195,9 @@ export default function GroupChat({ config, language, level, speechTag, studentN
 
   function exportTranscript() {
     exportConversation(
-      `Group conversation in ${language} (${level})`,
-      group.messages.map((m) => ({ speaker: m.speaker === "user" ? (studentName || "You") : nameOf(m.speaker), text: m.text, interrupted: m.interrupted })),
+      t("exportTitle.group", { language: languageInline(t, language), level }),
+      group.messages.map((m) => ({ speaker: m.speaker === "user" ? (studentName || t("chat.you")) : nameOf(m.speaker), text: m.text, interrupted: m.interrupted })),
+      `group-${language}-${level}`,
     );
   }
 
@@ -248,7 +235,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
 
     setCustomStyle(style.status === "fulfilled" ? styleFromServer(style.value) : null);
     if (picture.status === "fulfilled") setBackdrop(URL.createObjectURL(picture.value));
-    else setRoomNote("The picture for your topic couldn't be made, so the standard room is used.");
+    else setRoomNote(t("group.pictureFailed"));
     setPainting(false);
     group.start(sceneValue);
   }
@@ -263,20 +250,20 @@ export default function GroupChat({ config, language, level, speechTag, studentN
   const roomStyle = useMemo(() => customStyle ?? presetStyle(sceneId), [customStyle, sceneId]);
   const last = group.messages[group.messages.length - 1];
   const statusText = painting
-    ? "Getting the room ready. The group will start talking in a moment."
+    ? t("group.preparing")
     : group.status === "idle"
-      ? "Choose who sits at the table, pick a scene and press Start."
+      ? t("group.statusIdle")
       : running
         ? micOn
-          ? "The group is talking. Speak, type or press Stop to jump in."
-          : "The group is talking. Press Stop, or type, to jump in."
-        : "Your turn. Say something, or let them keep talking.";
+          ? t("group.statusTalkingMic")
+          : t("group.statusTalking")
+        : t("group.statusYourTurn");
 
   return (
     <>
-      <fieldset className="group-setup" aria-label="Group setup" disabled={painting}>
+      <fieldset className="group-setup" aria-label={t("group.setup")} disabled={painting}>
         <div className="group-members">
-          <span className="group-label">At the table ({members.length} of {max})</span>
+          <span className="group-label">{t("group.atTable", { count: members.length, max })}</span>
           <div className="chips">
             {characters.map((c) => {
               const selected = members.includes(c.id);
@@ -290,7 +277,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
                   style={selected ? ({ "--member": COLORS[members.indexOf(c.id) % COLORS.length] } as React.CSSProperties) : undefined}
                   aria-pressed={selected}
                   disabled={atMax || atMin}
-                  title={atMax ? `Up to ${max} people` : atMin ? `At least ${min} people` : c.role}
+                  title={atMax ? t("group.upTo", { max }) : atMin ? t("group.atLeast", { min }) : characterRole(t, c.id, c.role)}
                   onClick={() => toggleMember(c.id)}
                 >
                   {c.name}
@@ -301,7 +288,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
         </div>
         <div className="group-scene-options">
           <label>
-            Scene
+            {t("group.scene")}
             <select
               value={sceneId}
               onChange={(e) => {
@@ -311,14 +298,14 @@ export default function GroupChat({ config, language, level, speechTag, studentN
             >
               {scenes.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.title}
+                  {sceneTitle(t, s.id, s.title)}
                 </option>
               ))}
             </select>
           </label>
           <label className="grow">
-            Own topic (optional)
-            <input value={topic} maxLength={120} onChange={(e) => setTopic(e.target.value)} placeholder="For example: my favourite film" />
+            {t("group.ownTopic")}
+            <input value={topic} maxLength={120} onChange={(e) => setTopic(e.target.value)} placeholder={t("group.topicPlaceholder")} />
           </label>
           <label className="check">
             <input
@@ -329,34 +316,34 @@ export default function GroupChat({ config, language, level, speechTag, studentN
                 savePref("groupVoices", e.target.checked ? "on" : "off");
               }}
             />
-            Voices
+            {t("group.voices")}
           </label>
           <button type="button" className="primary" onClick={startScene}>
-            {group.status === "idle" ? "Start scene" : "Restart scene"}
+            {group.status === "idle" ? t("group.startScene") : t("group.restartScene")}
           </button>
         </div>
       </fieldset>
 
       {showScene && (
         <Suspense fallback={<div className="avatar group-scene" />}>
-          <GroupScene seats={seats} style={roomStyle} backdrop={backdrop} busyText={painting ? "Painting the room for your topic. The group will start soon…" : null} analyserFor={group.analyserFor} speakingId={group.speakingId} thinkingId={group.thinkingId} addresseeId={group.addresseeId} />
+          <GroupScene seats={seats} style={roomStyle} backdrop={backdrop} busyText={painting ? t("group.painting") : null} analyserFor={group.analyserFor} speakingId={group.speakingId} thinkingId={group.thinkingId} addresseeId={group.addresseeId} />
         </Suspense>
       )}
 
       <p className="group-status" aria-live="polite">
         {statusText}
-        {group.thinkingId && !showScene && <span> {nameOf(group.thinkingId)} is about to speak…</span>}
+        {group.thinkingId && !showScene && <span> {t("group.aboutToSpeak", { name: nameOf(group.thinkingId) })}</span>}
       </p>
       {group.error && <p className="notice error">{group.error}</p>}
       {voicesOn && !group.voiceStatus.natural && (
         <p className="notice">
-          The characters' natural voices aren't available right now, so your browser's voices are being used instead.
+          {t("group.browserVoices")}
           {group.voiceStatus.reason ? ` (${group.voiceStatus.reason.slice(0, 160)})` : ""}
         </p>
       )}
       {notice && <p className="notice error">{notice}</p>}
       {roomNote && <p className="notice">{roomNote}</p>}
-      {!recognizer.supported && <p className="notice">Voice input isn't supported in this browser. Use Chrome, Edge or Safari, or type instead.</p>}
+      {!recognizer.supported && <p className="notice">{t("notices.voiceInputUnsupported")}</p>}
 
       {!transcript.show && last && (
         <p className="caption">
@@ -373,7 +360,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
           onExport={exportTranscript}
         />
         <button type="button" className="toggle" aria-pressed={transcript.show} onClick={transcript.toggle}>
-          💬 {transcript.show ? "Hide transcript" : "Show transcript"}
+          💬 {transcript.show ? t("toolbar.hideTranscript") : t("toolbar.showTranscript")}
           {!transcript.show && group.messages.length > 0 ? ` (${group.messages.length})` : ""}
         </button>
       </div>
@@ -387,7 +374,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
                   {nameOf(m.speaker)}
                 </span>
               )}
-              <div className={`msg ${m.speaker === "user" ? "user" : "assistant"}`} style={m.speaker === "user" ? undefined : { borderLeft: `4px solid ${colorOf(m.speaker)}` }}>
+              <div className={`msg ${m.speaker === "user" ? "user" : "assistant"}`} style={m.speaker === "user" ? undefined : { borderInlineStart: `4px solid ${colorOf(m.speaker)}` }}>
                 {m.text}
                 {m.interrupted && <span className="cut"> —</span>}
               </div>
@@ -401,7 +388,7 @@ export default function GroupChat({ config, language, level, speechTag, studentN
           ))}
         {transcript.show && interim && <div className="msg user interim">🎤 {interim}</div>}
         {micOn && !interim && (
-          <div className="mic-status">{listening ? "🎤 Listening…" : "Microphone on"}</div>
+          <div className="mic-status">{listening ? `🎤 ${t("mic.listening")}` : t("mic.on")}</div>
         )}
       </div>
 
@@ -420,23 +407,23 @@ export default function GroupChat({ config, language, level, speechTag, studentN
             className={`mic${micOn ? " on" : ""}${listening ? " live" : ""}`}
             onClick={toggleMic}
             disabled={!recognizer.supported || painting}
-            aria-label={micOn ? "Turn microphone off" : "Turn microphone on"}
-            title={micOn ? "Microphone on. Click to turn off" : "Click to turn the microphone on"}
+            aria-label={micOn ? t("mic.turnOff") : t("mic.turnOn")}
+            title={micOn ? t("mic.titleOn") : t("mic.titleOff")}
           >
             🎤
           </button>
-          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={`Say something in ${language}…`} autoComplete="off" disabled={painting} />
+          <input value={input} onChange={(e) => setInput(e.target.value)} placeholder={t("group.sayIn", { language: languageInline(t, language) })} autoComplete="off" disabled={painting} />
           {running ? (
             <button type="button" onClick={group.interrupt} disabled={painting}>
-              Stop
+              {t("chat.stop")}
             </button>
           ) : group.status === "waiting" && !input.trim() ? (
             <button type="button" onClick={group.keepTalking} disabled={painting}>
-              Keep talking
+              {t("group.keepTalking")}
             </button>
           ) : (
             <button type="submit" disabled={!input.trim() || painting}>
-              Send
+              {t("chat.send")}
             </button>
           )}
         </form>

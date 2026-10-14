@@ -1,3 +1,4 @@
+import i18n from "../i18n";
 import { getCode } from "./api";
 
 export type VoiceEvent =
@@ -15,6 +16,9 @@ export interface Handlers {
 
 const SEND_RATE = 16000; // Gemini expects 16 kHz microphone audio
 const RECEIVE_RATE = 24000; // and returns 24 kHz audio
+
+// The browser's echo cancellation stops the teacher's voice from being picked up as the student's.
+const MIC: MediaTrackConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 };
 
 /**
  * Runs inside the audio thread: turns microphone audio at the context's sample rate into
@@ -112,20 +116,24 @@ class Player {
  * can speak at any time, including over the teacher, and the server reports when that happens.
  */
 export class LiveConversation {
+  // Held here so the browser can't collect them while the call runs (some browsers stop the microphone then).
+  private source: MediaStreamAudioSourceNode | null = null;
+  private capture: AudioWorkletNode | null = null;
+  private muted = false;
+  private closed = false;
+
   private constructor(
     private ws: WebSocket,
     private ctx: AudioContext,
     private stream: MediaStream,
     private player: Player,
+    private handlers: Handlers,
   ) {}
 
   static async start(
     lesson: { language: string; level: string; character: string; studentName?: string },
     handlers: Handlers): Promise<LiveConversation> {
-    // The browser's echo cancellation stops the teacher's voice from being picked up as the student's.
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-    });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: MIC });
     const ctx = new AudioContext({ latencyHint: "interactive" });
     let ws: WebSocket | undefined;
     const cleanup = () => {
@@ -147,7 +155,7 @@ export class LiveConversation {
       const socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/live`);
       ws = socket;
       socket.binaryType = "arraybuffer";
-      const call = new LiveConversation(socket, ctx, stream, player);
+      const call = new LiveConversation(socket, ctx, stream, player, handlers);
 
       await new Promise<void>((resolve, reject) => {
         let ready = false;
@@ -167,9 +175,9 @@ export class LiveConversation {
             handlers.onEvent(event as VoiceEvent);
           }
         };
-        socket.onerror = () => reject(new Error("Could not reach the voice service"));
+        socket.onerror = () => reject(new Error(i18n.t("errors.voiceUnreachable")));
         socket.onclose = () => {
-          if (!ready) reject(new Error("The voice service closed the connection"));
+          if (!ready) reject(new Error(i18n.t("errors.voiceClosed")));
           player.flush();
           call.release();
           handlers.onClose();
@@ -177,7 +185,6 @@ export class LiveConversation {
       });
 
       // Only start sending microphone audio once the teacher is connected.
-      const mic = ctx.createMediaStreamSource(stream);
       const capture = new AudioWorkletNode(ctx, "capture");
       capture.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
         if (socket.readyState === WebSocket.OPEN) socket.send(e.data);
@@ -185,7 +192,14 @@ export class LiveConversation {
       // The node has to be connected to the output for the browser to run it; the gain keeps it silent.
       const silent = ctx.createGain();
       silent.gain.value = 0;
-      mic.connect(capture).connect(silent).connect(ctx.destination);
+      capture.connect(silent).connect(ctx.destination);
+      call.capture = capture;
+      call.connectMic(stream);
+      // While the audio clock is stopped (the system suspended it, or the output device changed) the microphone
+      // sends nothing and the teacher can't be heard, so start it again.
+      ctx.onstatechange = () => {
+        if (!call.closed && ctx.state !== "running" && ctx.state !== "closed") void ctx.resume().catch(() => {});
+      };
       return call;
     } catch (err) {
       cleanup();
@@ -200,7 +214,38 @@ export class LiveConversation {
 
   /** Mutes the microphone without ending the call. */
   setMuted(muted: boolean) {
+    this.muted = muted;
     this.stream.getAudioTracks().forEach((t) => (t.enabled = !muted));
+  }
+
+  /** Feeds a microphone stream to the capture node, in place of the one before. */
+  private connectMic(stream: MediaStream) {
+    this.source?.disconnect();
+    this.stream = stream;
+    for (const track of stream.getAudioTracks()) {
+      track.enabled = !this.muted;
+      track.onended = () => void this.reopenMic();
+    }
+    this.source = this.ctx.createMediaStreamSource(stream);
+    this.source.connect(this.capture!);
+  }
+
+  /**
+   * The microphone stopped (unplugged, or the system took it away when devices changed). Without this the call would
+   * carry on deaf; instead the microphone in use now is opened, and if there is none the call ends with a reason.
+   */
+  private async reopenMic() {
+    if (this.closed) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: MIC });
+      if (this.closed) return stream.getTracks().forEach((t) => t.stop());
+      this.stream.getTracks().forEach((t) => t.stop());
+      this.connectMic(stream);
+    } catch {
+      if (this.closed) return;
+      this.handlers.onEvent({ type: "error", message: i18n.t("errors.micLost") });
+      this.stop();
+    }
   }
 
   sendText(text: string) {
@@ -213,7 +258,11 @@ export class LiveConversation {
   }
 
   private release() {
-    this.stream.getTracks().forEach((t) => t.stop());
+    this.closed = true;
+    this.stream.getTracks().forEach((t) => {
+      t.onended = null;
+      t.stop();
+    });
     void this.ctx.close().catch(() => {});
   }
 }

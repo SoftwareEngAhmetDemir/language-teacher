@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import type { Character } from "./characters";
@@ -75,6 +76,7 @@ interface Placed {
 
 /** Up to five teachers around a table in a furnished room. Each moves its mouth with its own voice and looks at whoever is talking. */
 export default function GroupScene({ seats, style, backdrop, busyText, analyserFor, speakingId, thinkingId, addresseeId }: Props) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef<(HTMLDivElement | null)[]>([]);
   const latest = useRef({ analyserFor, speakingId, thinkingId, addresseeId });
@@ -321,7 +323,7 @@ export default function GroupScene({ seats, style, backdrop, busyText, analyserF
           {busyText}
         </div>
       )}
-      {failed && <span className="avatar-note">The 3D table couldn't load on this device.</span>}
+      {failed && <span className="avatar-note">{t("avatar.tableFailed")}</span>}
     </div>
   );
 }

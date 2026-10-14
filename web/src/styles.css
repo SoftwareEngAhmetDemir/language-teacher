@@ -37,7 +37,7 @@ main { max-width: 860px; margin: 0 auto; padding: 1.25rem 1rem 0; min-height: 10
 h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
 header { display: flex; align-items: center; gap: 0.7rem; padding-bottom: 0.25rem; }
 header h1::before {
-  content: "文A"; display: inline-grid; place-items: center; width: 2.1rem; height: 2.1rem; margin-right: 0.65rem; vertical-align: middle;
+  content: "文A"; display: inline-grid; place-items: center; width: 2.1rem; height: 2.1rem; margin-inline-end: 0.65rem; vertical-align: middle;
   border-radius: 0.6rem; background: var(--accent); color: #fff; font-size: 0.8rem; font-weight: 800; letter-spacing: 0;
   box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent);
 }
@@ -48,7 +48,7 @@ select, input:not([type]), input[type="text"], input[type="password"] {
   border: 1px solid var(--line); border-radius: var(--radius); background-color: var(--surface); font-weight: 500;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-select { appearance: none; padding-right: 2.1rem; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238a97a8' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.8rem center; }
+select { appearance: none; padding-inline-end: 2.1rem; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238a97a8' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.8rem center; }
 select:hover, input:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
 input::placeholder { color: var(--ink-2); opacity: 0.8; }
 input[type="checkbox"], input[type="range"] { accent-color: var(--accent); }
@@ -73,8 +73,8 @@ fieldset:disabled { cursor: not-allowed; }
 .settings label.check input, .settings input[type="range"] { padding: 0; }
 .settings input[type="range"] { width: 100%; margin: 0.45rem 0; }
 
-.notice { margin: 0; padding: 0.7rem 0.9rem; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); font-size: 0.9rem; line-height: 1.5; color: var(--ink-2); }
-.notice.error { border-left-color: var(--danger); color: var(--danger-ink); }
+.notice { margin: 0; padding: 0.7rem 0.9rem; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); border-inline-start: 3px solid var(--accent); font-size: 0.9rem; line-height: 1.5; color: var(--ink-2); }
+.notice.error { border-inline-start-color: var(--danger); color: var(--danger-ink); }
 .msg.error { color: var(--danger-ink); }
 
 /* Transcript */
@@ -82,9 +82,9 @@ fieldset:disabled { cursor: not-allowed; }
 .empty { margin: auto; text-align: center; display: flex; flex-direction: column; gap: 1.1rem; align-items: center; max-width: 34rem; color: var(--ink-2); line-height: 1.6; }
 .empty p { margin: 0; }
 .msg { white-space: pre-wrap; line-height: 1.55; padding: 0.65rem 0.9rem; border-radius: 14px; max-width: 85%; }
-.msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-top-right-radius: 4px; }
+.msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-start-end-radius: 4px; }
 .msg.interim { opacity: 0.7; }
-.msg.assistant { align-self: flex-start; background: var(--surface-2); border-top-left-radius: 4px; }
+.msg.assistant { align-self: flex-start; background: var(--surface-2); border-start-start-radius: 4px; }
 .meta { display: flex; gap: 0.75rem; align-items: center; font-size: 0.75rem; opacity: 0.7; margin-top: 0.3rem; }
 button.link { border: 0; background: none; padding: 0; color: inherit; font-size: inherit; text-decoration: underline; }
 .msg.open::after { content: "▍"; opacity: 0.5; }
@@ -154,12 +154,12 @@ form input { flex: 1; min-width: 0; }
   box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 10%, transparent);
   animation: rise 0.25s ease both;
 }
-.translation::before { content: ""; position: absolute; left: 0.4rem; top: 0.75rem; bottom: 0.75rem; width: 3px; border-radius: 3px; background: linear-gradient(var(--accent), var(--violet)); }
+.translation::before { content: ""; position: absolute; inset-inline-start: 0.4rem; top: 0.75rem; bottom: 0.75rem; width: 3px; border-radius: 3px; background: linear-gradient(var(--accent), var(--violet)); }
 .translation-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .lang-picker { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.75rem; font-weight: 600; color: var(--ink-2); }
 .lang-picker select {
   appearance: none; font: inherit; font-size: 0.85rem; letter-spacing: 0; color: inherit; cursor: pointer;
-  padding: 0.3rem 1.8rem 0.3rem 0.8rem; border-radius: 2rem; border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  padding-block: 0.3rem; padding-inline: 0.8rem 1.8rem; border-radius: 2rem; border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
   background-color: var(--surface); background-position: right 0.7rem center;
 }
 .translation-buttons { display: flex; gap: 0.35rem; }
@@ -190,9 +190,9 @@ button.primary { background: var(--accent); color: #fff; border: 0; border-radiu
 .group-scene { height: 440px; }
 .group-status { margin: 0; font-size: 0.88rem; color: var(--ink-2); }
 .caption { margin: 0; padding: 0.7rem 0.95rem; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); line-height: 1.5; }
-.speaker-name { font-size: 0.75rem; font-weight: 700; margin: 0 0 0.15rem 0.4rem; }
-.entry.assistant .msg { border-radius: 4px 14px 14px 14px; }
-.entry.user .msg { border-radius: 14px 4px 14px 14px; }
+.speaker-name { font-size: 0.75rem; font-weight: 700; margin: 0 0 0.15rem; margin-inline-start: 0.4rem; }
+.entry.assistant .msg { border-start-start-radius: 4px; }
+.entry.user .msg { border-start-end-radius: 4px; }
 @media (max-width: 600px) { .group-scene { height: 300px; } }
 
 /* Shown over the 3D table while the wall for the student's topic is being painted. */
@@ -229,3 +229,10 @@ button.primary { background: var(--accent); color: #fff; border: 0; border-radiu
 @keyframes equalizer { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
 @keyframes bounce { 0%, 100% { transform: translateY(0); opacity: 0.5; } 50% { transform: translateY(-3px); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .seat-label .state i { animation: none !important; } }
+
+/* Interface language picker, and the changes right-to-left languages such as Arabic need. */
+.ui-language { margin-inline-start: auto; font-size: 0.85rem; padding-block: 0.4rem; }
+[dir="rtl"] select { background-position: left 0.8rem center; }
+[dir="rtl"] .lang-picker select { background-position: left 0.7rem center; }
+/* The 3D table and its name labels are laid out by the scene, not by the page's reading direction. */
+.group-scene { direction: ltr; }

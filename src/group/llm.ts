@@ -54,7 +54,9 @@ export const geminiGroupLLM: GroupLLM = {
       };
     } catch (err) {
       if (signal?.aborted) throw err;
-      console.error("Conductor failed, using rules instead:", err instanceof Error ? err.message : err);
+      // Hitting the time limit only says "This operation was aborted", which reads like a crash, so say what happened.
+      if (patience.aborted) console.warn(`Conductor gave no answer within ${CONDUCTOR_TIMEOUT_MS} ms, using rules instead`);
+      else console.error("Conductor failed, using rules instead:", err instanceof Error ? err.message : err);
       return null;
     }
   },

@@ -1,3 +1,5 @@
+import i18n from "../i18n";
+
 export interface Language {
   name: string;
   speechTag: string;
@@ -11,6 +13,23 @@ export interface Config {
 }
 
 const CODE_KEY = "accessCode";
+
+/** Messages the server sends that the student can run into, and the interface text that replaces them. */
+const SERVER_ERRORS = {
+  "Wrong access code": "errors.wrongCode",
+  "Access code required": "errors.codeRequired",
+  "The group is busy, try again in a moment": "errors.groupBusy",
+  "Too many voices at once": "errors.tooManyVoices",
+  "Translation failed": "errors.translationFailed",
+  "Gemini request failed": "errors.requestFailed",
+} as const;
+
+/** A server error in the interface language when it is a known one; anything else is shown as it came. */
+export function serverMessage(message: string): string {
+  return message in SERVER_ERRORS ? i18n.t(SERVER_ERRORS[message as keyof typeof SERVER_ERRORS]) : message;
+}
+
+const serverError = (body: { error?: string }, fallback: string) => new Error(serverMessage(body.error ?? fallback));
 
 /** The access code the user entered, kept for this browser tab only. */
 export function getCode(): string {
@@ -49,7 +68,7 @@ export interface Lesson {
 
 export async function fetchConfig(): Promise<Config> {
   const res = await fetch("/api/config");
-  if (!res.ok) throw new Error(`Could not load config (${res.status})`);
+  if (!res.ok) throw new Error(i18n.t("errors.configLoad", { status: res.status }));
   return res.json();
 }
 
@@ -67,7 +86,7 @@ export async function* streamReply(
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? res.statusText);
+    throw serverError(body, res.statusText);
   }
 
   const reader = res.body!.getReader();
@@ -82,7 +101,7 @@ export async function* streamReply(
       const raw = buf.slice(0, end).replace(/^data: /, "");
       buf = buf.slice(end + 2);
       const event = JSON.parse(raw) as { delta?: string; done?: boolean; error?: string };
-      if (event.error) throw new Error(event.error);
+      if (event.error) throw new Error(serverMessage(event.error));
       if (event.delta) yield event.delta;
     }
   }
@@ -97,7 +116,7 @@ export async function translate(text: string, target: string, signal?: AbortSign
     signal,
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error ?? res.statusText);
+  if (!res.ok) throw serverError(body, res.statusText);
   return body.translation as string;
 }
 
@@ -131,7 +150,7 @@ export async function* streamGroupRound(request: GroupRoundRequest, signal?: Abo
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? res.statusText);
+    throw serverError(body, res.statusText);
   }
   const reader = res.body!.getReader();
   const decoder = new TextDecoder();
@@ -162,7 +181,7 @@ export async function openSpeech(text: string, character: string, signal?: Abort
   });
   if (!res.ok || !res.body) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? res.statusText);
+    throw serverError(body, res.statusText);
   }
   return res;
 }

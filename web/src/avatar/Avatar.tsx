@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import * as THREE from "three";
 import { MouthDriver } from "./lipSync";
 import type { Rig } from "./rig";
@@ -17,6 +18,7 @@ interface Props {
 
 /** A 3D teacher (VRM model on three.js) with lip sync, blinking, breathing, eye contact and head movement. */
 export default function Avatar({ modelUrl, analyser, speaking, attentive }: Props) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const latest = useRef({ analyser, speaking, attentive });
   const [status, setStatus] = useState<"loading" | "ready" | "failed">("loading");
@@ -104,8 +106,8 @@ export default function Avatar({ modelUrl, analyser, speaking, attentive }: Prop
   return (
     <div className="avatar">
       <canvas ref={canvasRef} />
-      {status === "loading" && <span className="avatar-note">Loading teacher…</span>}
-      {status === "failed" && <span className="avatar-note">The 3D teacher couldn't load on this device.</span>}
+      {status === "loading" && <span className="avatar-note">{t("avatar.loading")}</span>}
+      {status === "failed" && <span className="avatar-note">{t("avatar.teacherFailed")}</span>}
     </div>
   );
 }

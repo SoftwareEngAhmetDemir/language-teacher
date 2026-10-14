@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { streamGroupRound } from "../lib/api";
+import { serverMessage, streamGroupRound } from "../lib/api";
+import i18n from "../i18n";
+import type { HeardLine } from "../lib/echo";
 import { GroupPlayer, type SpokenLine } from "../lib/groupPlayer";
 
 export interface GroupMessage {
@@ -58,6 +60,9 @@ export function useGroupChat(options: Options) {
   const controller = useRef<AbortController | null>(null);
   const scene = useRef("cafe");
   const player = useRef<GroupPlayer | null>(null);
+  // When each of the last lines was heard, so what the microphone picks up can be checked against what was coming out
+  // of the speakers at the time. `end` is unset while the line is still being spoken.
+  const heardLines = useRef<{ id: number; text: string; end?: number }[]>([]);
 
   const add = useCallback((message: Omit<GroupMessage, "id">) => {
     const full = { ...message, id: nextId.current++ };
@@ -73,11 +78,15 @@ export function useGroupChat(options: Options) {
           onStart: (line) => {
             pending.current = pending.current.filter((p) => p.id !== line.id);
             add({ speaker: line.speaker, text: line.text });
+            // With voices off nothing comes out of the speakers, so there is nothing to echo.
+            if (latest.current.voice) heardLines.current = [...heardLines.current.slice(-11), { id: line.id, text: line.text }];
             setSpeakingId(line.speaker);
             setAddresseeId(line.addressee ?? null);
             setThinkingId((id) => (id === line.speaker ? null : id));
           },
           onEnd: (line, completed) => {
+            const heard = heardLines.current.find((l) => l.id === line.id);
+            if (heard) heard.end = Date.now();
             setSpeakingId((id) => (id === line.speaker ? null : id));
             setAddresseeId(null);
             if (!completed) {
@@ -125,13 +134,13 @@ export function useGroupChat(options: Options) {
           } else if (event.type === "done") awaitUser = event.awaitUser;
           else if (event.type === "error") {
             failed = true;
-            setError(event.message);
+            setError(serverMessage(event.message));
           }
         }
       } catch (err) {
         if (abort.signal.aborted || myToken !== token.current) return;
         failed = true;
-        setError(err instanceof Error ? err.message : "The group conversation failed");
+        setError(err instanceof Error ? err.message : i18n.t("errors.groupFailed"));
       }
 
       if (!awaitUser && !failed && autoLeft > 0) {
@@ -225,7 +234,17 @@ export function useGroupChat(options: Options) {
   /** Lets the browser play audio. Call it from a click, before anything that has to wait. */
   const unlock = useCallback(() => getPlayer().unlock(), [getPlayer]);
 
+  /** When the group was last heard (Date.now() time): now while a line is being spoken. */
+  const lastHeardAt = useCallback(() => {
+    // A browser voice can still be talking after its line was counted as over.
+    if ("speechSynthesis" in window && speechSynthesis.speaking) return Date.now();
+    return heardLines.current.reduce((last, l) => Math.max(last, l.end ?? Date.now()), 0);
+  }, []);
+
+  /** The last lines said out loud, with when each stopped being heard. */
+  const getHeardLines = useCallback((): HeardLine[] => heardLines.current.map(({ text, end }) => ({ text, end })), []);
+
   const analyserFor = useCallback((id: string) => player.current?.analyserFor(id) ?? null, []);
 
-  return { messages, status, speakingId, thinkingId, addresseeId, voiceStatus, error, start, say, keepTalking, interrupt, reset, unlock, analyserFor };
+  return { messages, status, speakingId, thinkingId, addresseeId, voiceStatus, error, lastHeardAt, heardLines: getHeardLines, start, say, keepTalking, interrupt, reset, unlock, analyserFor };
 }

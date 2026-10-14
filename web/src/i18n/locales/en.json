@@ -1,0 +1,175 @@
+{
+  "app": {
+    "title": "Language Teacher",
+    "loading": "Loading…",
+    "interfaceLanguage": "Interface language"
+  },
+  "loadError": "Could not reach the service: {{message}}. Start it with <code>npm run dev</code> in the project root.",
+  "access": {
+    "placeholder": "Access code",
+    "enter": "Enter",
+    "wrong": "Wrong access code."
+  },
+  "levels": {
+    "A1": "A1 · Beginner",
+    "A2": "A2 · Elementary",
+    "B1": "B1 · Intermediate",
+    "B2": "B2 · Upper-intermediate",
+    "C1": "C1 · Advanced",
+    "C2": "C2 · Mastery",
+    "C2+": "C2+ · Beyond mastery"
+  },
+  "languages": {
+    "English": "English",
+    "Turkish": "Turkish",
+    "Spanish": "Spanish",
+    "French": "French",
+    "German": "German",
+    "Italian": "Italian",
+    "Portuguese": "Portuguese",
+    "Dutch": "Dutch",
+    "Russian": "Russian",
+    "Arabic": "Arabic",
+    "Hindi": "Hindi",
+    "Japanese": "Japanese",
+    "Korean": "Korean",
+    "Chinese (Mandarin)": "Chinese (Mandarin)"
+  },
+  "settings": {
+    "language": "Language",
+    "level": "Level",
+    "yourName": "Your name",
+    "namePlaceholder": "So they can call you",
+    "engine": "Engine",
+    "teacher": "Teacher",
+    "showTeacher": "Show teacher",
+    "showTable": "Show 3D table",
+    "voice": "Voice",
+    "noVoice": "No {{language}} voice",
+    "speed": "Speed {{rate}}×",
+    "speakReplies": "Speak replies"
+  },
+  "engines": {
+    "voice": "Natural voice conversation",
+    "text": "Text chat with browser voice",
+    "group": "Group conversation (up to {{max}})"
+  },
+  "notices": {
+    "voiceInputUnsupported": "Voice input isn't supported in this browser. Use Chrome, Edge or Safari, or type instead.",
+    "noBrowserVoice": "This browser has no {{language}} voice, so replies would be read with the wrong pronunciation. Install one in your system's speech settings (on macOS: System Settings → Accessibility → Spoken Content → System Voice → Manage Voices), then reload."
+  },
+  "mic": {
+    "blocked": "Microphone access was blocked. Allow it in your browser's site settings.",
+    "missing": "No microphone was found.",
+    "network": "Speech recognition needs an internet connection.",
+    "languageUnsupported": "This browser cannot recognise {{language}} speech.",
+    "turnOn": "Turn microphone on",
+    "turnOff": "Turn microphone off",
+    "titleOn": "Microphone on. Click to turn off",
+    "titleOff": "Click to turn the microphone on",
+    "listening": "Listening…",
+    "on": "Microphone on",
+    "pausedWhileTeacherTalks": "Microphone on · paused while the teacher talks"
+  },
+  "toolbar": {
+    "stop": "Stop conversation",
+    "export": "Export conversation",
+    "hideTranscript": "Hide transcript",
+    "showTranscript": "Show transcript"
+  },
+  "chat": {
+    "emptyVoice": "Practise {{language}} at level {{level}} in a real conversation. Start the call, allow the microphone and just talk. You can interrupt the teacher at any moment. Headphones work best.",
+    "emptyText": "Practise {{language}} at level {{level}}. Press the microphone and speak, type below, or let the teacher begin.",
+    "startLesson": "Start lesson",
+    "noReply": "(no reply)",
+    "timing": "first word {{first}} ms · total {{total}} ms",
+    "replay": "Replay",
+    "you": "You",
+    "typeIn": "Type in {{language}}…",
+    "typeToo": "Start the conversation to type as well",
+    "send": "Send",
+    "stop": "Stop"
+  },
+  "call": {
+    "start": "Start conversation",
+    "connecting": "Connecting…",
+    "end": "End conversation",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "muted": "Muted",
+    "teacherSpeaking": "Teacher is speaking · talk any time to interrupt",
+    "listening": "Listening…"
+  },
+  "exportTitle": {
+    "voice": "Voice call in {{language}} ({{level}})",
+    "text": "Text chat in {{language}} ({{level}})",
+    "group": "Group conversation in {{language}} ({{level}})"
+  },
+  "group": {
+    "setup": "Group setup",
+    "atTable": "At the table ({{count}} of {{max}})",
+    "upTo": "Up to {{max}} people",
+    "atLeast": "At least {{min}} people",
+    "scene": "Scene",
+    "ownTopic": "Own topic (optional)",
+    "topicPlaceholder": "For example: my favourite film",
+    "voices": "Voices",
+    "startScene": "Start scene",
+    "restartScene": "Restart scene",
+    "painting": "Painting the room for your topic. The group will start soon…",
+    "preparing": "Getting the room ready. The group will start talking in a moment.",
+    "statusIdle": "Choose who sits at the table, pick a scene and press Start.",
+    "statusTalkingMic": "The group is talking. Speak, type or press Stop to jump in.",
+    "statusTalking": "The group is talking. Press Stop, or type, to jump in.",
+    "statusYourTurn": "Your turn. Say something, or let them keep talking.",
+    "aboutToSpeak": "{{name}} is about to speak…",
+    "browserVoices": "The characters' natural voices aren't available right now, so your browser's voices are being used instead.",
+    "pictureFailed": "The picture for your topic couldn't be made, so the standard room is used.",
+    "keepTalking": "Keep talking",
+    "sayIn": "Say something in {{language}}…"
+  },
+  "scenes": {
+    "cafe": "Coffee shop chat",
+    "study": "Study group",
+    "dinner": "Dinner table",
+    "travel": "Planning a trip",
+    "weekend": "Weekend plans"
+  },
+  "roles": {
+    "professor": "The group's teacher",
+    "luna": "Kind, curious classmate",
+    "rex": "Upbeat, joking classmate",
+    "robot": "Precise, quirky classmate",
+    "anime": "Cheerful, enthusiastic classmate"
+  },
+  "translate": {
+    "button": "Translate",
+    "region": "Translation",
+    "to": "Translate to",
+    "copy": "Copy",
+    "copied": "Copied",
+    "close": "Close translation",
+    "translating": "Translating",
+    "tryAgain": "Try again"
+  },
+  "avatar": {
+    "loading": "Loading teacher…",
+    "teacherFailed": "The 3D teacher couldn't load on this device.",
+    "tableFailed": "The 3D table couldn't load on this device."
+  },
+  "errors": {
+    "configLoad": "Could not load config ({{status}})",
+    "groupFailed": "The group conversation failed",
+    "voiceUnreachable": "Could not reach the voice service",
+    "voiceClosed": "The voice service closed the connection",
+    "voiceSlow": "The voice took too long to start",
+    "voiceNoAudio": "The voice returned no audio",
+    "wrongCode": "Wrong access code",
+    "codeRequired": "Access code required",
+    "groupBusy": "The group is busy, try again in a moment",
+    "tooManyVoices": "Too many voices at once",
+    "translationFailed": "Translation failed",
+    "requestFailed": "Gemini request failed",
+    "micLost": "The microphone was disconnected. Check it and start the conversation again."
+  }
+}

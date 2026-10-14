@@ -1,0 +1,175 @@
+{
+  "app": {
+    "title": "Dil Öğretmeni",
+    "loading": "Yükleniyor…",
+    "interfaceLanguage": "Arayüz dili"
+  },
+  "loadError": "Hizmete ulaşılamadı: {{message}}. Proje kök dizininde <code>npm run dev</code> komutuyla başlatın.",
+  "access": {
+    "placeholder": "Erişim kodu",
+    "enter": "Giriş",
+    "wrong": "Erişim kodu yanlış."
+  },
+  "levels": {
+    "A1": "A1 · Başlangıç",
+    "A2": "A2 · Temel",
+    "B1": "B1 · Orta",
+    "B2": "B2 · Orta üstü",
+    "C1": "C1 · İleri",
+    "C2": "C2 · Ustalık",
+    "C2+": "C2+ · Ustalığın ötesi"
+  },
+  "languages": {
+    "English": "İngilizce",
+    "Turkish": "Türkçe",
+    "Spanish": "İspanyolca",
+    "French": "Fransızca",
+    "German": "Almanca",
+    "Italian": "İtalyanca",
+    "Portuguese": "Portekizce",
+    "Dutch": "Felemenkçe",
+    "Russian": "Rusça",
+    "Arabic": "Arapça",
+    "Hindi": "Hintçe",
+    "Japanese": "Japonca",
+    "Korean": "Korece",
+    "Chinese (Mandarin)": "Çince (Mandarin)"
+  },
+  "settings": {
+    "language": "Dil",
+    "level": "Seviye",
+    "yourName": "Adınız",
+    "namePlaceholder": "Size adınızla hitap edebilsinler",
+    "engine": "Mod",
+    "teacher": "Öğretmen",
+    "showTeacher": "Öğretmeni göster",
+    "showTable": "3D masayı göster",
+    "voice": "Ses",
+    "noVoice": "{{language}} sesi yok",
+    "speed": "Hız {{rate}}×",
+    "speakReplies": "Yanıtları sesli oku"
+  },
+  "engines": {
+    "voice": "Doğal sesli konuşma",
+    "text": "Tarayıcı sesiyle yazılı sohbet",
+    "group": "Grup konuşması (en fazla {{max}} kişi)"
+  },
+  "notices": {
+    "voiceInputUnsupported": "Bu tarayıcı sesli girişi desteklemiyor. Chrome, Edge veya Safari kullanın ya da yazarak devam edin.",
+    "noBrowserVoice": "Bu tarayıcıda {{language}} sesi yok; yanıtlar yanlış telaffuzla okunurdu. Sistemin konuşma ayarlarından bir ses yükleyin (macOS'ta: Sistem Ayarları → Erişilebilirlik → Okunan İçerik → Sistem Sesi → Sesleri Yönet), ardından sayfayı yenileyin."
+  },
+  "mic": {
+    "blocked": "Mikrofon erişimi engellendi. Tarayıcınızın site ayarlarından izin verin.",
+    "missing": "Mikrofon bulunamadı.",
+    "network": "Konuşma tanıma için internet bağlantısı gerekir.",
+    "languageUnsupported": "Bu tarayıcı {{language}} konuşmasını tanıyamıyor.",
+    "turnOn": "Mikrofonu aç",
+    "turnOff": "Mikrofonu kapat",
+    "titleOn": "Mikrofon açık. Kapatmak için tıklayın",
+    "titleOff": "Mikrofonu açmak için tıklayın",
+    "listening": "Dinleniyor…",
+    "on": "Mikrofon açık",
+    "pausedWhileTeacherTalks": "Mikrofon açık · öğretmen konuşurken duraklatıldı"
+  },
+  "toolbar": {
+    "stop": "Konuşmayı durdur",
+    "export": "Konuşmayı dışa aktar",
+    "hideTranscript": "Yazıyı gizle",
+    "showTranscript": "Yazıyı göster"
+  },
+  "chat": {
+    "emptyVoice": "{{level}} seviyesinde {{language}} pratiğini gerçek bir konuşmayla yapın. Görüşmeyi başlatın, mikrofona izin verin ve konuşun. Öğretmenin sözünü istediğiniz an kesebilirsiniz. Kulaklık en iyi sonucu verir.",
+    "emptyText": "{{level}} seviyesinde {{language}} pratiği yapın. Mikrofona basıp konuşun, aşağıya yazın ya da öğretmenin başlamasına izin verin.",
+    "startLesson": "Dersi başlat",
+    "noReply": "(yanıt yok)",
+    "timing": "ilk kelime {{first}} ms · toplam {{total}} ms",
+    "replay": "Tekrar dinle",
+    "you": "Siz",
+    "typeIn": "{{language}} yazın…",
+    "typeToo": "Yazabilmek için konuşmayı başlatın",
+    "send": "Gönder",
+    "stop": "Durdur"
+  },
+  "call": {
+    "start": "Konuşmayı başlat",
+    "connecting": "Bağlanıyor…",
+    "end": "Konuşmayı bitir",
+    "mute": "Sessize al",
+    "unmute": "Sesi aç",
+    "muted": "Sessizde",
+    "teacherSpeaking": "Öğretmen konuşuyor · sözünü kesmek için istediğiniz an konuşun",
+    "listening": "Dinleniyor…"
+  },
+  "exportTitle": {
+    "voice": "{{language}} sesli görüşme ({{level}})",
+    "text": "{{language}} yazılı sohbet ({{level}})",
+    "group": "{{language}} grup konuşması ({{level}})"
+  },
+  "group": {
+    "setup": "Grup ayarları",
+    "atTable": "Masada ({{count}} / {{max}})",
+    "upTo": "En fazla {{max}} kişi",
+    "atLeast": "En az {{min}} kişi",
+    "scene": "Sahne",
+    "ownTopic": "Kendi konunuz (isteğe bağlı)",
+    "topicPlaceholder": "Örneğin: en sevdiğim film",
+    "voices": "Sesler",
+    "startScene": "Sahneyi başlat",
+    "restartScene": "Sahneyi yeniden başlat",
+    "painting": "Konunuz için oda boyanıyor. Grup birazdan konuşmaya başlayacak…",
+    "preparing": "Oda hazırlanıyor. Grup birazdan konuşmaya başlayacak.",
+    "statusIdle": "Masada kimlerin oturacağını seçin, bir sahne belirleyin ve Başlat'a basın.",
+    "statusTalkingMic": "Grup konuşuyor. Söze girmek için konuşun, yazın ya da Durdur'a basın.",
+    "statusTalking": "Grup konuşuyor. Söze girmek için Durdur'a basın ya da yazın.",
+    "statusYourTurn": "Sıra sizde. Bir şey söyleyin ya da konuşmaya devam etmelerine izin verin.",
+    "aboutToSpeak": "{{name}} konuşmak üzere…",
+    "browserVoices": "Karakterlerin doğal sesleri şu anda kullanılamıyor; bunun yerine tarayıcınızın sesleri kullanılıyor.",
+    "pictureFailed": "Konunuz için resim oluşturulamadı, bu yüzden standart oda kullanılıyor.",
+    "keepTalking": "Konuşmaya devam etsinler",
+    "sayIn": "{{language}} bir şey söyleyin…"
+  },
+  "scenes": {
+    "cafe": "Kafede sohbet",
+    "study": "Çalışma grubu",
+    "dinner": "Akşam yemeği masası",
+    "travel": "Gezi planlama",
+    "weekend": "Hafta sonu planları"
+  },
+  "roles": {
+    "professor": "Grubun öğretmeni",
+    "luna": "Nazik, meraklı sınıf arkadaşı",
+    "rex": "Neşeli, şakacı sınıf arkadaşı",
+    "robot": "Titiz, tuhaf sınıf arkadaşı",
+    "anime": "Hayat dolu, hevesli sınıf arkadaşı"
+  },
+  "translate": {
+    "button": "Çevir",
+    "region": "Çeviri",
+    "to": "Çeviri dili",
+    "copy": "Kopyala",
+    "copied": "Kopyalandı",
+    "close": "Çeviriyi kapat",
+    "translating": "Çevriliyor",
+    "tryAgain": "Tekrar dene"
+  },
+  "avatar": {
+    "loading": "Öğretmen yükleniyor…",
+    "teacherFailed": "3D öğretmen bu cihazda yüklenemedi.",
+    "tableFailed": "3D masa bu cihazda yüklenemedi."
+  },
+  "errors": {
+    "configLoad": "Yapılandırma yüklenemedi ({{status}})",
+    "groupFailed": "Grup konuşması başarısız oldu",
+    "voiceUnreachable": "Ses hizmetine ulaşılamadı",
+    "voiceClosed": "Ses hizmeti bağlantıyı kapattı",
+    "voiceSlow": "Ses başlamak için çok uzun sürdü",
+    "voiceNoAudio": "Ses hizmeti ses döndürmedi",
+    "wrongCode": "Erişim kodu yanlış",
+    "codeRequired": "Erişim kodu gerekli",
+    "groupBusy": "Grup meşgul, birazdan tekrar deneyin",
+    "tooManyVoices": "Aynı anda çok fazla ses isteği var",
+    "translationFailed": "Çeviri başarısız oldu",
+    "requestFailed": "Gemini isteği başarısız oldu",
+    "micLost": "Mikrofonun bağlantısı kesildi. Mikrofonu kontrol edip konuşmayı yeniden başlatın."
+  }
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LiveConversation, type VoiceEvent } from "../lib/liveConversation";
+import i18n from "../i18n";
 import type { Message } from "../lib/types";
 
 export type CallStatus = "idle" | "connecting" | "live";
@@ -91,7 +92,7 @@ export function useVoiceConversation() {
         if (id !== callId.current) return;
         const denied = e instanceof DOMException && (e.name === "NotAllowedError" || e.name === "SecurityError");
         setError(
-          denied ? "Microphone access was blocked. Allow it in your browser's site settings." : (e as Error).message,
+          denied ? i18n.t("mic.blocked") : (e as Error).message,
         );
         setStatus("idle");
       }
