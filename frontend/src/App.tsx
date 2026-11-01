@@ -6,18 +6,24 @@ import { recognitionProblem, splitSentences } from "./lib/speech";
 import { useRecognizer } from "./hooks/useRecognizer";
 import { useSpeaker } from "./hooks/useSpeaker";
 import { useVoiceConversation } from "./hooks/useVoiceConversation";
+import { useRoom } from "./hooks/useRoom";
 import { CHARACTERS, DEFAULT_CHARACTER } from "./avatar/characters";
+import type { Seat } from "./avatar/GroupScene";
 import GroupChat from "./components/GroupChat";
 import MessageTools from "./components/MessageTools";
 import ConversationControls from "./components/ConversationControls";
 import { exportConversation } from "./lib/exportConversation";
 import { loadPref, savePref } from "./lib/prefs";
 import LanguageSwitcher from "./i18n/LanguageSwitcher";
-import { languageInline, languageLabel, levelLabel } from "./i18n/labels";
+import { languageInline, languageLabel, levelLabel, sceneTitle } from "./i18n/labels";
 
 // three.js and the 3D model are only downloaded when the teacher is shown.
 const VrmTeacher = lazy(() => import("./avatar/Avatar"));
 const CartoonTeacher = lazy(() => import("./avatar/CartoonAvatar"));
+// With a scene or topic chosen, the teacher sits in a furnished room instead, the same one the group scenes use.
+const TeacherRoom = lazy(() => import("./avatar/GroupScene"));
+
+const MAX_TOPIC_CHARS = 120;
 
 const START_LESSON = "Hello! Please start our lesson.";
 
@@ -43,6 +49,10 @@ export default function App() {
   // What the characters call the student: kept as typed (draft) and applied when the field is left.
   const [studentName, setStudentName] = useState(() => loadPref("studentName", ""));
   const [nameDraft, setNameDraft] = useState(studentName);
+  // What a one-to-one lesson is about: a ready-made scene ("" for a free conversation) or the student's own topic, which wins.
+  const [sceneId, setSceneId] = useState(() => loadPref("scene", ""));
+  const [topic, setTopic] = useState(() => loadPref("topic", ""));
+  const [topicDraft, setTopicDraft] = useState(topic);
   const [showTeacher, setShowTeacher] = useState(() => loadPref("showTeacher", "on") === "on");
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [unlocked, setUnlocked] = useState(() => getCode() !== "");
@@ -73,15 +83,26 @@ export default function App() {
 
   const speechTag = config?.languages.find((l) => l.name === language)?.speechTag ?? "en-US";
   const character = CHARACTERS.find((c) => c.id === characterId) ?? CHARACTERS[0];
+  const knownScene = config?.group.scenes.some((s) => s.id === sceneId) ? sceneId : "";
+  const scene = topic || knownScene;
   const lesson = useMemo<Lesson>(
-    () => ({ sessionId, language, level, character: character.id, studentName: studentName || undefined }),
-    [sessionId, language, level, character.id, studentName],
+    () => ({ sessionId, language, level, character: character.id, studentName: studentName || undefined, scene: scene || undefined }),
+    [sessionId, language, level, character.id, studentName, scene],
   );
 
   const speaker = useSpeaker(speechTag, character.speech);
   const voice = useVoiceConversation();
   const voiceMode = engine === "voice";
   const groupMode = engine === "group";
+  const room = useRoom(knownScene, topic, showTeacher && !groupMode && topic !== "");
+  const inRoom = showTeacher && !groupMode && scene !== "";
+  const seats = useMemo<Seat[]>(() => [{ id: character.id, name: character.name, color: "#1a73e8", character }], [character]);
+  // The settings wait while the room for an own topic is painted.
+  useEffect(() => {
+    if (groupMode) return;
+    setSceneBusy(room.painting);
+    return () => setSceneBusy(false);
+  }, [groupMode, room.painting]);
   const teacherState = {
     analyser: voiceMode ? voice.analyser : null,
     speaking: voiceMode ? voice.teacherSpeaking : speaker.speaking,
@@ -136,6 +157,17 @@ export default function App() {
     newConversation(() => {
       setStudentName(name);
       savePref("studentName", name);
+    });
+  }
+
+  /** Applies the typed topic. The teacher needs to start over to use it, so this begins a new conversation. */
+  function commitTopic() {
+    const next = topicDraft.replace(/\s+/g, " ").trim().slice(0, MAX_TOPIC_CHARS);
+    setTopicDraft(next);
+    if (next === topic) return;
+    newConversation(() => {
+      setTopic(next);
+      savePref("topic", next);
     });
   }
 
@@ -293,7 +325,21 @@ export default function App() {
         <LanguageSwitcher />
       </header>
 
-      {showTeacher && !groupMode && (
+      {inRoom && (
+        <Suspense fallback={<div className="avatar group-scene" />}>
+          <TeacherRoom
+            seats={seats}
+            style={room.style}
+            backdrop={room.backdrop}
+            busyText={room.painting ? t("settings.paintingRoom") : null}
+            analyserFor={() => (voiceMode ? voice.analyser : null)}
+            speakingId={teacherState.speaking ? character.id : null}
+            thinkingId={!voiceMode && busy && !teacherState.speaking ? character.id : null}
+            addresseeId="user"
+          />
+        </Suspense>
+      )}
+      {showTeacher && !groupMode && !inRoom && (
         <Suspense fallback={<div className="avatar" />}>
           {character.kind === "vrm" ? (
             <VrmTeacher modelUrl={character.url} {...teacherState} />
@@ -303,6 +349,7 @@ export default function App() {
         </Suspense>
       )}
       {showTeacher && character.credit && <p className="credit">{character.credit}</p>}
+      {inRoom && room.pictureFailed && <p className="notice">{t("group.pictureFailed")}</p>}
 
       <fieldset className="settings" disabled={sceneBusy}>
         <label>
@@ -369,6 +416,35 @@ export default function App() {
               ))}
             </select>
           </label>
+        )}
+        {!groupMode && (
+          <>
+            <label>
+              {t("group.scene")}
+              <select
+                value={knownScene}
+                onChange={(e) => newConversation(() => { setSceneId(e.target.value); savePref("scene", e.target.value); })}
+              >
+                <option value="">{t("settings.noScene")}</option>
+                {config.group.scenes.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {sceneTitle(t, s.id, s.title)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {t("group.ownTopic")}
+              <input
+                value={topicDraft}
+                maxLength={MAX_TOPIC_CHARS}
+                placeholder={t("group.topicPlaceholder")}
+                onChange={(e) => setTopicDraft(e.target.value)}
+                onBlur={commitTopic}
+                onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+              />
+            </label>
+          </>
         )}
         <label className="check">
           <input

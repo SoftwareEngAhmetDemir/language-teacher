@@ -47,7 +47,9 @@
     "voice": "الصوت",
     "noVoice": "لا يوجد صوت للغة: {{language}}",
     "speed": "السرعة {{rate}}×",
-    "speakReplies": "قراءة الردود بصوت عالٍ"
+    "speakReplies": "قراءة الردود بصوت عالٍ",
+    "noScene": "محادثة حرة",
+    "paintingRoom": "يجري رسم الغرفة لموضوعك…"
   },
   "engines": {
     "voice": "محادثة صوتية طبيعية",

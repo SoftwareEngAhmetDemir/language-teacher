@@ -47,7 +47,9 @@
     "voice": "Ses",
     "noVoice": "{{language}} sesi yok",
     "speed": "Hız {{rate}}×",
-    "speakReplies": "Yanıtları sesli oku"
+    "speakReplies": "Yanıtları sesli oku",
+    "noScene": "Serbest sohbet",
+    "paintingRoom": "Konunuz için oda boyanıyor…"
   },
   "engines": {
     "voice": "Doğal sesli konuşma",

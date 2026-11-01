@@ -64,6 +64,8 @@ export interface Lesson {
   character: string;
   /** What the characters should call the student. */
   studentName?: string;
+  /** A scene id from the config, or the student's own topic; left out for a free conversation. */
+  scene?: string;
 }
 
 export async function fetchConfig(): Promise<Config> {

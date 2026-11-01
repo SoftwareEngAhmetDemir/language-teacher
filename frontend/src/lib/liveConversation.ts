@@ -131,7 +131,7 @@ export class LiveConversation {
   ) {}
 
   static async start(
-    lesson: { language: string; level: string; character: string; studentName?: string },
+    lesson: { language: string; level: string; character: string; studentName?: string; scene?: string },
     handlers: Handlers): Promise<LiveConversation> {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: MIC });
     const ctx = new AudioContext({ latencyHint: "interactive" });

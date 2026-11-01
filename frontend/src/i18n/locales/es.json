@@ -47,7 +47,9 @@
     "voice": "Voz",
     "noVoice": "Sin voz en {{language}}",
     "speed": "Velocidad {{rate}}×",
-    "speakReplies": "Leer las respuestas en voz alta"
+    "speakReplies": "Leer las respuestas en voz alta",
+    "noScene": "Conversación libre",
+    "paintingRoom": "Pintando la sala para tu tema…"
   },
   "engines": {
     "voice": "Conversación de voz natural",

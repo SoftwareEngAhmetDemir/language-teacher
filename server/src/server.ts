@@ -74,8 +74,8 @@ app.post("/api/chat", async (req, res) => {
     res.status(401).json({ error: "Access code required" });
     return;
   }
-  const { sessionId, message, language, level, character, studentName } = req.body ?? {};
-  const profile = parseProfile(language, level, character, studentName);
+  const { sessionId, message, language, level, character, studentName, scene } = req.body ?? {};
+  const profile = parseProfile(language, level, character, studentName, scene);
   if (!isSessionId(sessionId)) {
     res.status(400).json({ error: "`sessionId` is invalid" });
     return;

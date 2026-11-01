@@ -47,7 +47,9 @@
     "voice": "Voice",
     "noVoice": "No {{language}} voice",
     "speed": "Speed {{rate}}×",
-    "speakReplies": "Speak replies"
+    "speakReplies": "Speak replies",
+    "noScene": "Free conversation",
+    "paintingRoom": "Painting the room for your topic…"
   },
   "engines": {
     "voice": "Natural voice conversation",
