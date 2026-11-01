@@ -20,6 +20,7 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "@rolldown/binding-darwin-arm64": "^1.2.16",
     "@types/dom-speech-recognition": "^0.0.12",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
