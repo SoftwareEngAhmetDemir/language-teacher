@@ -2,20 +2,24 @@
 
 Practise a language by talking to an AI teacher. Pick a language and a CEFR level (A1 to C2+), then either hold a natural voice conversation, where you can interrupt the teacher at any time, or chat by text with browser voices. Built on the Gemini API: the Live API for voice and a Flash model for text.
 
-- `src/` — Node/Express service (TypeScript): the teacher prompt, text chat over server-sent events, and a WebSocket relay to the Gemini Live API.
-- `web/` — React + TypeScript frontend (Vite).
+- `server/` — Node/Express service (TypeScript): the teacher prompt, text chat over server-sent events, and a WebSocket relay to the Gemini Live API.
+- `frontend/` — React + TypeScript frontend (Vite).
+- `docs/` — design notes and architecture diagrams.
+- `Dockerfile`, `render.yaml` — build the frontend and run both as one service.
 
 ## Run locally
 
 Needs Node 22.12 or newer and a [Gemini API key](https://aistudio.google.com/apikey).
 
 ```bash
-cp .env.example .env        # then put your GEMINI_API_KEY in .env
-npm install
+cp server/.env.example server/.env   # then put your GEMINI_API_KEY in server/.env
+npm run install:all
 npm run dev                 # backend on http://localhost:3000
 
-cd web && npm install && npm run dev   # frontend, open the URL it prints
+npm run dev:frontend        # in a second terminal; open the URL it prints
 ```
+
+These root scripts just forward to `server/` and `frontend/`, which you can also run directly (`cd server && npm run dev`).
 
 ## Group conversation
 
@@ -23,11 +27,15 @@ Pick **Group conversation** as the engine to seat two to four of the characters 
 
 ## Each teacher has their own voice
 
-In voice calls every character speaks with a different Gemini voice and personality: Professor Whiskers is calm and wise (Sadaltager), Ms. Luna warm and gentle (Sulafat), Coach Rex energetic (Fenrir), Robo-Tutor clear and even (Iapetus) and the anime teacher bright and breezy (Aoede). The voice and the personality text are chosen on the server from the character id (`src/characters.ts`), and the call has to be restarted to change them, so switching teacher starts a new conversation. Google does not label voices as male or female, so these are matched to its style descriptions; change them in that file if one doesn't suit. In text chat the browser's own voice is used, with a different pitch and pace per character (`web/src/avatar/characters.ts`).
+In voice calls every character speaks with a different Gemini voice and personality: Professor Whiskers is calm and wise (Sadaltager), Ms. Luna warm and gentle (Sulafat), Coach Rex energetic (Fenrir), Robo-Tutor clear and even (Iapetus) and the anime teacher bright and breezy (Aoede). The voice and the personality text are chosen on the server from the character id (`server/src/characters.ts`), and the call has to be restarted to change them, so switching teacher starts a new conversation. Google does not label voices as male or female, so these are matched to its style descriptions; change them in that file if one doesn't suit. In text chat the browser's own voice is used, with a different pitch and pace per character (`frontend/src/avatar/characters.ts`).
 
 ## Translating the transcript
 
 Every message in the transcript has a **Translate** button. It opens a language picker and shows the translation underneath, with a Copy button. Translations are cached per message, so switching languages back and forth is instant, and the last language you picked is remembered. The server does the translation through the same text model as the chat (`POST /api/translate`, limited to the supported languages and 2,000 characters), and it also asks for the access code when one is set.
+
+## Install as an app (PWA)
+
+The frontend is an installable progressive web app: use your browser's **Install** option (Chrome or Edge: the icon in the address bar; iOS Safari: Share → Add to Home Screen) to get a standalone window with its own icon. A service worker (`frontend/public/sw.js`) caches the app shell, fonts and the 3D model so the app opens quickly and the shell loads offline, but chat, speech and voice calls need a connection and always go to the server (`/api` is never cached). It only runs in a production build served over HTTPS (or `localhost`), not under `npm run dev`. The manifest is `frontend/public/manifest.webmanifest`; bump `VERSION` in `sw.js` to force every cache to refresh.
 
 ## Deploy
 
@@ -43,11 +51,11 @@ With a plain `GEMINI_API_KEY` the requests go to one global endpoint with no reg
 
 ## Configuration
 
-See [.env.example](.env.example) for all options (models, thinking level, voice, Vertex AI region, call limit).
+See [server/.env.example](server/.env.example) for all options (models, thinking level, voice, Vertex AI region, call limit).
 
 ## The 3D teachers
 
 Pick a teacher in the settings. All of them are rendered with [three.js](https://threejs.org) (MIT) and move their mouths with the audio being played: each frame the app measures the voice's formants (linear prediction) to pick the vowel shape, and its loudness to set how far the mouth opens. They also blink, breathe, keep eye contact and nod with the voice. In text mode, where the browser's voice can't be analysed, the mouth uses a syllable-paced animation instead.
 
-- **Professor Whiskers, Ms. Luna, Coach Rex and Robo-Tutor** are original characters built from simple shapes in code, so they need no model files. Each is just a `Look` (colours, nose, hair, moustache or beard, glasses, hat, robot) in `web/src/avatar/characters.ts`; add an entry there to make another.
-- **Anime teacher** is a [VRM](https://vrm.dev) model rendered with [@pixiv/three-vrm](https://github.com/pixiv/three-vrm) (MIT), `web/public/models/teacher.vrm`, the sample avatar by pixiv Inc. Its license allows redistribution and modification with no credit required. To add your own VRM 0.x or 1.0 model, put the file in that folder, add an entry to `characters.ts` (with a `credit` line if its license requires one, which the app then shows under the character), and check its license first. It needs the `aa`, `ih`, `ou`, `ee` and `oh` expressions for lip sync.
+- **Professor Whiskers, Ms. Luna, Coach Rex and Robo-Tutor** are original characters built from simple shapes in code, so they need no model files. Each is just a `Look` (colours, nose, hair, moustache or beard, glasses, hat, robot) in `frontend/src/avatar/characters.ts`; add an entry there to make another.
+- **Anime teacher** is a [VRM](https://vrm.dev) model rendered with [@pixiv/three-vrm](https://github.com/pixiv/three-vrm) (MIT), `frontend/public/models/teacher.vrm`, the sample avatar by pixiv Inc. Its license allows redistribution and modification with no credit required. To add your own VRM 0.x or 1.0 model, put the file in that folder, add an entry to `characters.ts` (with a `credit` line if its license requires one, which the app then shows under the character), and check its license first. It needs the `aa`, `ih`, `ou`, `ee` and `oh` expressions for lip sync.

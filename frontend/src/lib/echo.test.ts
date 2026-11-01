@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { novelWordCount, studentWords, withoutEcho } from "../../web/src/lib/echo.js";
+import { novelWordCount, studentWords, withoutEcho } from "./echo.js";
 
 const rex = "Şam şehri çok güzel, değil mi Ahmet?";
 const professor = "Emevilerin camileri çok büyüktür, Ahmet, haklısın.";

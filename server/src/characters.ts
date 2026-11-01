@@ -1,5 +1,5 @@
 /**
- * Everything the server knows about each teacher character. The ids match web/src/avatar/characters.ts.
+ * Everything the server knows about each teacher character. The ids match frontend/src/avatar/characters.ts.
  *
  * - `voice`: one of Gemini's prebuilt voices, used in voice calls and for group-chat speech.
  *   Google does not say which voices are male or female, so these are matched to its style

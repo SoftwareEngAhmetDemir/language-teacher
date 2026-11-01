@@ -15,9 +15,9 @@ import { voiceServer } from "./voice.js";
 const app = express();
 app.use(express.json({ limit: "32kb" }));
 
-// Serve the built React app (web/dist) if it exists. In development use `npm run dev` in web/.
-const webDist = fileURLToPath(new URL("../web/dist", import.meta.url));
-if (existsSync(webDist)) app.use(express.static(webDist));
+// Serve the built React app (frontend/dist) if it exists. In development use `npm run dev` in frontend/.
+const frontendDist = fileURLToPath(new URL("../../frontend/dist", import.meta.url));
+if (existsSync(frontendDist)) app.use(express.static(frontendDist));
 
 const isSessionId = (v: unknown): v is string => typeof v === "string" && /^[\w-]{8,64}$/.test(v);
 

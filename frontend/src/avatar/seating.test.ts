@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-// The seating maths lives with the 3D scene in the web project; it is tested here because that is where the test runner is.
-import { PERSON_SCALE, SEAT_GAP, seatLayout } from "../../web/src/avatar/seating.js";
+import { PERSON_SCALE, SEAT_GAP, seatLayout } from "./seating.js";
 
 describe("seatLayout", () => {
   it("never seats two people closer than a seat gap, so characters cannot overlap", () => {

@@ -1,5 +1,4 @@
-node_modules
-web/node_modules
-web/dist
-.env
+**/node_modules
+frontend/dist
+**/.env
 .git

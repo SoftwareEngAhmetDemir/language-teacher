@@ -10,7 +10,7 @@
     "noEmit": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "types": ["vite/client", "dom-speech-recognition"]
+    "types": ["vite/client", "dom-speech-recognition", "node"]
   },
   "include": ["src", "vite.config.ts"]
 }

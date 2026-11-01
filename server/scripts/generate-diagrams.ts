@@ -1,8 +1,8 @@
-// Draws the architecture diagrams in this folder as SVG files: `npm run diagrams`.
+// Draws the architecture diagrams in docs/diagrams as SVG files: `npm run diagrams` (in server/).
 // The PNG copies were rendered from the SVGs in a browser.
 import { writeFileSync } from "node:fs";
 
-const OUT = new URL(".", import.meta.url).pathname;
+const OUT = new URL("../../docs/diagrams/", import.meta.url).pathname;
 const C = { blue: "#1a73e8", green: "#2e9e5b", purple: "#8e44ad", orange: "#d98324", red: "#c62828", ink: "#1b2430", grey: "#5b6675", line: "#3b4656" };
 const FILL = { blue: "#eaf2fe", green: "#e9f6ee", purple: "#f4ebfa", orange: "#fdf1e0", red: "#fdecec", white: "#ffffff" };
 

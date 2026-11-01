@@ -1,33 +1,16 @@
 {
-  "name": "language-teacher",
-  "version": "1.0.0",
+  "name": "language-teacher-workspace",
   "private": true,
-  "type": "module",
+  "description": "Convenience scripts that forward to server/ and frontend/. Each folder has its own dependencies.",
   "scripts": {
-    "dev": "node --env-file-if-exists=.env --watch --import tsx src/server.ts",
-    "start": "node --env-file-if-exists=.env --import tsx src/server.ts",
-    "build": "npm --prefix web ci && npm --prefix web run build",
-    "typecheck": "tsc --noEmit",
-    "probe:regions": "node --import tsx scripts/probe-regions.ts",
-    "test": "node --import tsx --test \"src/**/*.test.ts\"",
-    "diagrams": "node --import tsx docs/diagrams/generate.ts"
-  },
-  "dependencies": {
-    "@google/genai": "^2.28.0",
-    "@langchain/core": "^1.2.17",
-    "@langchain/langgraph": "^1.4.21",
-    "express": "^5.3.0",
-    "ws": "^8.22.0",
-    "zod": "^4.6.5"
-  },
-  "devDependencies": {
-    "@types/express": "^5.0.6",
-    "@types/node": "^26.6.5",
-    "@types/ws": "^8.18.2",
-    "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
-  },
-  "engines": {
-    "node": ">=22.12"
+    "install:all": "npm --prefix server install && npm --prefix frontend install",
+    "dev": "npm --prefix server run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "start": "npm --prefix server start",
+    "build": "npm --prefix frontend ci && npm --prefix frontend run build",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix frontend run typecheck",
+    "test": "npm --prefix server test && npm --prefix frontend test",
+    "probe:regions": "npm --prefix server run probe:regions",
+    "diagrams": "npm --prefix server run diagrams"
   }
 }

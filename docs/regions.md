@@ -29,7 +29,7 @@ If a regional location starts serving the 3.x models for your project, `npm run 
 
 1. In Google Cloud, use a project with billing and the **Vertex AI API** enabled.
 2. Sign in on your computer: `gcloud auth application-default login`
-3. In `.env`:
+3. In `server/.env`:
 
 ```
 GOOGLE_GENAI_USE_VERTEXAI=true
