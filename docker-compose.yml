@@ -1,0 +1,8 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file: server/.env
+    environment:
+      PORT: "3000"
